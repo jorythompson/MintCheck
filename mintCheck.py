@@ -90,7 +90,7 @@ def main():
 #        acc = mintObjects.MintAccount(account)
 #        acc.dump()
 
-    print "getting Budgets..."
+    print "getting Budgets..." 
     mint_budgets = mintObjects.MintBudgets(budgets)
 #    mint_budgets.dump()
 
