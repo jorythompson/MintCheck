@@ -1,7 +1,9 @@
-import collections
+from operator import itemgetter
+from datetime import datetime
 
 
 class MintTransactions:
+    DATE_FORMAT = "%b %d"
     ##############################################
     # __init__: constructor for a MintTransactions
     # obj:      string that describes a group of transactions
@@ -31,8 +33,26 @@ class MintTransactions:
         for transaction in self.transactions:
             if transaction.fi() == fi and transaction.account() == account and transaction.account() not in transactions:
                 transactions.append(transaction)
-        sorted_transactions = sorted(transactions, key=lambda k: k['date'])
-        return sorted_transactions
+        return MintTransactions.sort_by_key(transactions, 'date')
+#        sorted_transactions = sorted(transactions, key=itemgetter('date'))
+#        sorted_transactions = sorted(transactions, key=lambda k: k['date'])
+#        return sorted_transactions
+
+    @staticmethod
+    def sort_by_key(transactions, key):
+        trans = []
+        for k in transactions:
+            i = 0
+            while i < len(trans):
+                if trans[i].date() > k.date():
+#                if datetime.strptime(trans[i][key], MintTransactions.DATE_FORMAT) > \
+#                        datetime.strptime(k[key], MintTransactions.DATE_FORMAT):
+                    break
+                else:
+                    i += 1
+            print "inserting " + str(k[key]) + " at " + str(i)
+            trans.insert(i, k)
+        return trans
 
     def dump(self):
         for transaction in self.transactions:

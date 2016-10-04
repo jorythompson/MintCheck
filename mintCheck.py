@@ -4,6 +4,7 @@ import mintObjects
 import mintReport
 import argparse
 import cPickle
+import datetime
 
 MINT_USER = "Mint User"
 MINT_COOKIES = "Mint Cookies"
@@ -45,7 +46,7 @@ def unpickle():
 
 
 def main():
-    dev = True
+    dev = False
 
     if dev:
         print "unpicking..."
@@ -54,14 +55,14 @@ def main():
         config_file = get_args()
         username, password, cookie = read_config(config_file)
         print "connecting..."
-        mint = mintapi.Mint(username, password, ius_session=cookie)
+        mint = mintapi.Mint(email=username, password=password, ius_session=cookie)
 
         # Get basic account information
         # accounts = mint.get_accounts()
         # Get extended account detail at the expense of speed - requires an
         # additional API call for each account
         print "getting accounts..."
-        accounts = mint.get_accounts(True)
+        accounts = mint.get_accounts(get_detail=True)
 
         # Get budget information
         print "getting budgets..."
@@ -70,8 +71,11 @@ def main():
         # Get transactions
         # transactions = mint.get_transactions()  # as pandas dataframe
         # print mint.get_transactions_csv(include_investment=False) # as raw csv data
-        print "getting transactions..."
-        transactions = mint.get_transactions_json(include_investment=False, skip_duplicates=False)
+        first_of_month = datetime.date.today()
+        first_of_month = datetime.datetime.strptime(str(first_of_month.year) + "-" + str(first_of_month.month) + "-1","%Y-%m-%d")
+        print "getting transactions from " + str(first_of_month) + "..."
+        transactions = mint.get_transactions_json(include_investment=False, skip_duplicates=False,
+                                                  start_date=first_of_month)
 
         # Get net worth
         print "getting net worth..."
@@ -90,7 +94,7 @@ def main():
 #        acc = mintObjects.MintAccount(account)
 #        acc.dump()
 
-    print "getting Budgets..." 
+    print "getting Budgets..."
     mint_budgets = mintObjects.MintBudgets(budgets)
 #    mint_budgets.dump()
 

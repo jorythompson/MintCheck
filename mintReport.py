@@ -1,7 +1,5 @@
-import glob
-import dominate
 import dominate.tags as tags
-
+import collections
 
 class PrettyPrint:
     def __init__(self, budgets, accounts, transactions, net_worth):
@@ -14,24 +12,22 @@ class PrettyPrint:
     def save(self, file_name):
         html = tags.html()
         with html.add(tags.body()).add(tags.div(id='content')):
-            tags.h1("Main Page")
             fis = self.transactions.get_financial_institutions()
             for fi in fis:
-                tags.h2(fi)
+                tags.h1(fi)
                 print fi
                 accounts = self.transactions.get_accounts(fi)
                 for account in accounts:
+                    tags.h2(account)
                     transactions = self.transactions.get_transactions(fi, account)
                     with tags.table():
                         with tags.thead():
-                            tags.th("Account")
                             tags.th("Date")
                             tags.th("Merchant")
                             tags.th("Amount")
                         for transaction in transactions:
                             with tags.tbody():
                                 with tags.tbody():
-                                    tags.td(transaction.account())
                                     tags.td(transaction.date())
                                     tags.td(transaction.merchant())
                                     tags.td(transaction.amount())
