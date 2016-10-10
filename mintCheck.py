@@ -71,11 +71,14 @@ def main():
         # Get transactions
         # transactions = mint.get_transactions()  # as pandas dataframe
         # print mint.get_transactions_csv(include_investment=False) # as raw csv data
-        first_of_month = datetime.date.today()
-        first_of_month = datetime.datetime.strptime(str(first_of_month.year) + "-" + str(first_of_month.month) + "-1","%Y-%m-%d")
-        print "getting transactions from " + str(first_of_month) + "..."
+        today = datetime.date.today()
+        first = today.replace(day=1)
+        last_month = first - datetime.timedelta(days=1)
+        last_month = last_month.replace(day=1)
+        start_date = last_month.strftime("%m/%d/%y")
+        print "getting transactions from " + start_date + "..."
         transactions = mint.get_transactions_json(include_investment=False, skip_duplicates=False,
-                                                  start_date=first_of_month)
+                                                  start_date=start_date)
 
         # Get net worth
         print "getting net worth..."
