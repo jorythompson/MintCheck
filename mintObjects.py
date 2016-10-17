@@ -1,9 +1,7 @@
-from operator import itemgetter
-from datetime import datetime
+from dateutil import parser
 
 
 class MintTransactions:
-    DATE_FORMAT = "%b %d"
     ##############################################
     # __init__: constructor for a MintTransactions
     # obj:      string that describes a group of transactions
@@ -50,7 +48,6 @@ class MintTransactions:
                     break
                 else:
                     i += 1
-            print "inserting " + str(k[key]) + " at " + str(i)
             trans.insert(i, k)
         return trans
 
@@ -513,7 +510,8 @@ class MintTransaction:
 
     def date(self):
         try:
-            return self.obj['date']
+            rtn = parser.parse(self.obj['date'])
+            return rtn
         except KeyError:
             return None
 

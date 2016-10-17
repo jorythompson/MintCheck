@@ -1,13 +1,11 @@
 import mintapi
-import ConfigParser
 import mintObjects
 import mintReport
 import argparse
 import cPickle
 import datetime
+import ConfigFileReader
 
-MINT_USER = "Mint User"
-MINT_COOKIES = "Mint Cookies"
 
 
 def get_args():
@@ -17,13 +15,6 @@ def get_args():
     return args.config
 
 
-def read_config(config_file):
-    config = ConfigParser.ConfigParser()
-    config.read(config_file)
-    username = config.get(MINT_USER, "username")
-    password = config.get(MINT_USER, "password")
-    cookie = config.get(MINT_COOKIES, "cookie")
-    return username, password, cookie
 
 
 def pickle(budgets, accounts, transactions, net_worth):
@@ -46,14 +37,22 @@ def unpickle():
 
 
 def main():
-    dev = False
+    config_file = get_args()
+    username, password, cookie, users = ConfigFileReader.read_config(config_file)
+
+    dev = True
 
     if dev:
         print "unpicking..."
         budgets, accounts, transactions, net_worth = unpickle()
     else:
-        config_file = get_args()
-        username, password, cookie = read_config(config_file)
+        today = datetime.date.today()
+        first = today.replace(day=1)
+        last_month = first - datetime.timedelta(days=1)
+        last_month = last_month.replace(day=1)
+        start_date = last_month.strftime("%m/%d/%y")
+        print "getting transactions from " + start_date + "..."
+
         print "connecting..."
         mint = mintapi.Mint(email=username, password=password, ius_session=cookie)
 
@@ -71,12 +70,6 @@ def main():
         # Get transactions
         # transactions = mint.get_transactions()  # as pandas dataframe
         # print mint.get_transactions_csv(include_investment=False) # as raw csv data
-        today = datetime.date.today()
-        first = today.replace(day=1)
-        last_month = first - datetime.timedelta(days=1)
-        last_month = last_month.replace(day=1)
-        start_date = last_month.strftime("%m/%d/%y")
-        print "getting transactions from " + start_date + "..."
         transactions = mint.get_transactions_json(include_investment=False, skip_duplicates=False,
                                                   start_date=start_date)
 
@@ -88,10 +81,10 @@ def main():
         pickle(budgets, accounts, transactions, net_worth)
         # Initiate an account refresh
 
-        print "refreshing..."
-        refresh = mint.initiate_account_refresh()
-        print "done!"
-        print refresh
+#        print "refreshing..."
+#        refresh = mint.initiate_account_refresh()
+#        print "done!"
+#        print refresh
 
 #    for account in accounts:
 #        acc = mintObjects.MintAccount(account)
@@ -106,7 +99,7 @@ def main():
 #    mint_transactions.dump()
 
     print "Creating HTML..."
-    report = mintReport.PrettyPrint(mint_budgets, accounts, mint_transactions, net_worth)
+    report = mintReport.PrettyPrint(users, mint_budgets, accounts, mint_transactions, net_worth)
 
     print "Saving HTML..."
     report.save("test.html")

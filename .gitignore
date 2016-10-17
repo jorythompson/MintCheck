@@ -1,4 +1,6 @@
 *.pickle
 home.ini
 work.ini
+laptop-home.ini
+laptop.ini
 *.html

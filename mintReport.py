@@ -1,8 +1,9 @@
 import dominate.tags as tags
-import collections
+
 
 class PrettyPrint:
-    def __init__(self, budgets, accounts, transactions, net_worth):
+    def __init__(self, users, budgets, accounts, transactions, net_worth):
+        self.users = users
         self.budgets = budgets
         self.accounts = accounts
         self.transactions = transactions
@@ -24,13 +25,23 @@ class PrettyPrint:
                         with tags.thead():
                             tags.th("Date")
                             tags.th("Merchant")
-                            tags.th("Amount")
+                            tags.th("Amount", rowspan="2")
+                            tags.tr()
+                            tags.th("")
+                            tags.th("")
+                            tags.th("Credit")
+                            tags.th("Debit")
                         for transaction in transactions:
                             with tags.tbody():
                                 with tags.tbody():
-                                    tags.td(transaction.date())
+                                    tags.td(transaction.date().strftime('%b %d'))
                                     tags.td(transaction.merchant())
-                                    tags.td(transaction.amount())
+                                    if transaction["isDebit"]:
+                                        tags.td("")
+                                        tags.td("-" + transaction.amount(), style="text-align:right")
+                                    else:
+                                        tags.td(transaction.amount(), style="text-align:right")
+                                        tags.td("")
         with open(file_name, 'w') as f:
             f.write(str(html))
 
