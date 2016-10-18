@@ -4,81 +4,103 @@ import mintReport
 import argparse
 import cPickle
 import datetime
-import ConfigFileReader
+from mintConfigFile import MintConfigFile
 
 
+class MintCheck:
+    def __init__(self, dev=False):
+        self.args = None
+        self.budgets = None
+        self.accounts = None
+        self.transactions = None
+        self.net_worth = None
+        self.users = None
+        self.mint_budgets = None
+        self.mint_transactions = None
+        self.args = MintCheck.get_args()
+        self.config = MintConfigFile(self.args.config)
+        self.users = self.config.users
 
-def get_args():
-    parser = argparse.ArgumentParser(description='Read Information from Mint')
-    parser.add_argument('--config', help='Configuration file containing your username, password, and mint cookie')
-    args = parser.parse_args()
-    return args.config
+        if dev:
+            print "unpicking..."
+            self.unpickle()
+        else:
+            today = datetime.date.today()
+            first = today.replace(day=1)
+            last_month = first - datetime.timedelta(days=1)
+            last_month = last_month.replace(day=1)
+            start_date = last_month.strftime("%m/%d/%y")
+            print "getting transactions from " + start_date + "..."
 
+            mint = mintapi.Mint(email=self.config.username, password=self.config.password, ius_session=self.config.cookie)
 
+            # Get basic account information
+            # accounts = mint.get_accounts()
+            # Get extended account detail at the expense of speed - requires an
+            # additional API call for each account
+            print "getting accounts..."
+            self.accounts = mint.get_accounts(get_detail=True)
 
+            # Get budget information
+            print "getting budgets..."
+            self.budgets = mint.get_budgets()
 
-def pickle(budgets, accounts, transactions, net_worth):
-    with open('filename.pickle', 'wb') as handle:
-        cPickle.dump(budgets, handle)
-        cPickle.dump(accounts, handle)
-        cPickle.dump(transactions, handle)
-        cPickle.dump(net_worth, handle)
-    pass
+            # Get transactions
+            # transactions = mint.get_transactions()  # as pandas dataframe
+            # print mint.get_transactions_csv(include_investment=False) # as raw csv data
+            self.transactions = mint.get_transactions_json(include_investment=False, skip_duplicates=False,
+                                                           start_date=start_date)
 
+            # Get net worth
+            print "getting net worth..."
+            self.net_worth = mint.get_net_worth()
 
-def unpickle():
-    with open('filename.pickle', 'rb') as handle:
-        budgets = cPickle.load(handle)
-        accounts = cPickle.load(handle)
-        transactions = cPickle.load(handle)
-        net_worth = cPickle.load(handle)
+            print "pickling..."
+            self.pickle()
 
-    return budgets, accounts, transactions, net_worth
+        print "getting Budgets..."
+        self.mint_budgets = self.get_budgets()
+        #    mint_budgets.dump()
+
+        print "getting Transactions..."
+        self.mint_transactions = self.get_transactions()
+
+    #    mint_transactions.dump()
+
+    def get_budgets(self):
+        print "getting Budgets..."
+        return mintObjects.MintBudgets(self.budgets)
+
+    def get_transactions(self):
+        return mintObjects.MintTransactions(self.transactions)
+
+    @staticmethod
+    def get_args():
+        parser = argparse.ArgumentParser(description='Read Information from Mint')
+        parser.add_argument('--config', help='Configuration file containing your username, password, and mint cookie')
+        return parser.parse_args()
+
+    def pretty_print(self):
+        return mintReport.PrettyPrint(self.users, self.mint_budgets, self.accounts, self.mint_transactions, self.net_worth)
+
+    def pickle(self):
+        with open('filename.pickle', 'wb') as handle:
+            cPickle.dump(self.budgets, handle)
+            cPickle.dump(self.accounts, handle)
+            cPickle.dump(self.transactions, handle)
+            cPickle.dump(self.net_worth, handle)
+
+    def unpickle(self):
+        with open('filename.pickle', 'rb') as handle:
+            self.budgets = cPickle.load(handle)
+            self.accounts = cPickle.load(handle)
+            self.transactions = cPickle.load(handle)
+            self.net_worth = cPickle.load(handle)
 
 
 def main():
-    config_file = get_args()
-    username, password, cookie, users = ConfigFileReader.read_config(config_file)
+    mint_check = MintCheck(dev=True)
 
-    dev = True
-
-    if dev:
-        print "unpicking..."
-        budgets, accounts, transactions, net_worth = unpickle()
-    else:
-        today = datetime.date.today()
-        first = today.replace(day=1)
-        last_month = first - datetime.timedelta(days=1)
-        last_month = last_month.replace(day=1)
-        start_date = last_month.strftime("%m/%d/%y")
-        print "getting transactions from " + start_date + "..."
-
-        print "connecting..."
-        mint = mintapi.Mint(email=username, password=password, ius_session=cookie)
-
-        # Get basic account information
-        # accounts = mint.get_accounts()
-        # Get extended account detail at the expense of speed - requires an
-        # additional API call for each account
-        print "getting accounts..."
-        accounts = mint.get_accounts(get_detail=True)
-
-        # Get budget information
-        print "getting budgets..."
-        budgets = mint.get_budgets()
-
-        # Get transactions
-        # transactions = mint.get_transactions()  # as pandas dataframe
-        # print mint.get_transactions_csv(include_investment=False) # as raw csv data
-        transactions = mint.get_transactions_json(include_investment=False, skip_duplicates=False,
-                                                  start_date=start_date)
-
-        # Get net worth
-        print "getting net worth..."
-        net_worth = mint.get_net_worth()
-
-        print "pickling..."
-        pickle(budgets, accounts, transactions, net_worth)
         # Initiate an account refresh
 
 #        print "refreshing..."
@@ -90,23 +112,15 @@ def main():
 #        acc = mintObjects.MintAccount(account)
 #        acc.dump()
 
-    print "getting Budgets..."
-    mint_budgets = mintObjects.MintBudgets(budgets)
-#    mint_budgets.dump()
-
-    print "getting Transactions..."
-    mint_transactions = mintObjects.MintTransactions(transactions)
-#    mint_transactions.dump()
-
     print "Creating HTML..."
-    report = mintReport.PrettyPrint(users, mint_budgets, accounts, mint_transactions, net_worth)
+    report = mint_check.pretty_print()
 
     print "Saving HTML..."
-    report.save("test.html")
+    report.save()
     # print mint.get_transactions_csv(include_investment=False) # as raw csv data
     # print mint.get_transactions_json(include_investment=False, skip_duplicates=False)
 
-    print net_worth
+    print mint_check.net_worth
     print "Done!"
 
 if __name__ == "__main__":
