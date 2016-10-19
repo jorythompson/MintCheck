@@ -1,5 +1,5 @@
 import dominate.tags as tags
-
+WARNINGS = ["fee", "charge"]
 
 class PrettyPrint:
     def __init__(self, users, budgets, accounts, transactions, net_worth):
@@ -40,14 +40,19 @@ class PrettyPrint:
                                 for transaction in transactions:
                                     with tags.tbody():
                                         with tags.tbody():
-                                            tags.td(transaction.date().strftime('%b %d'))
-                                            tags.td(transaction.merchant())
+                                            color = "white"
+                                            for warning in WARNINGS:
+                                                if warning in transaction.merchant().lower():
+                                                    color = "red"
+                                                    break
+                                            tags.td(transaction.date().strftime('%b %d'), bgcolor=color)
+                                            tags.td(transaction.merchant(), bgcolor=color)
                                             if transaction["isDebit"]:
-                                                tags.td("")
-                                                tags.td("-" + transaction.amount(), style="text-align:right")
+                                                tags.td("", bgcolor=color)
+                                                tags.td("-" + transaction.amount(), style="text-align:right", bgcolor=color)
                                             else:
-                                                tags.td(transaction.amount(), style="text-align:right")
-                                                tags.td("")
+                                                tags.td(transaction.amount(), style="text-align:right", bgcolor=color)
+                                                tags.td("", bgcolor=color)
             with open(file_name, 'w') as f:
                 f.write(str(html))
 
