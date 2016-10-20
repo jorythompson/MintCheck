@@ -85,7 +85,7 @@ class PrettyPrint:
                                     tags.td(transaction.amount(), style="text-align:right")
                                     tags.td("")
 
-            self.email_sender.send(user.email, user.subject, str(html) + str(html2))
+            self.email_sender.send(user.email, user.subject, str(html2) + str(html))
             with open(user.name + ".html", 'w') as f:
                 f.write(str(html))
             with open(user.name + "_header.html", 'w') as f:
