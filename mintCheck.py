@@ -5,7 +5,7 @@ import argparse
 import cPickle
 import datetime
 from mintConfigFile import MintConfigFile
-
+from emailSender import EmailSender
 
 class MintCheck:
     def __init__(self, dev=False):
@@ -20,6 +20,7 @@ class MintCheck:
         self.args = MintCheck.get_args()
         self.config = MintConfigFile(self.args.config)
         self.users = self.config.users
+        self.email_sender = EmailSender(self.config.email_username, self.config.email_password, self.config.email_user_from)
 
         if dev:
             print "unpicking..."
@@ -81,7 +82,8 @@ class MintCheck:
         return parser.parse_args()
 
     def pretty_print(self):
-        return mintReport.PrettyPrint(self.users, self.mint_budgets, self.accounts, self.mint_transactions, self.net_worth)
+        return mintReport.PrettyPrint(self.users, self.mint_budgets, self.accounts, self.mint_transactions,
+                                      self.net_worth, self.email_sender)
 
     def pickle(self):
         with open('filename.pickle', 'wb') as handle:
