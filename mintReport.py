@@ -26,9 +26,17 @@ class PrettyPrint:
                         account = str(account)
                         if account in user.accounts or "all" in user.accounts:
                             if not fis_title_saved:
-                                tags.h1(fi)
+                                try:
+                                    f = user.rename_institutions[fi]
+                                except KeyError:
+                                    f = fi
+                                tags.h1(f)
                                 fis_title_saved = True
-                            tags.h2(account)
+                            try:
+                                acc = user.rename_accounts[account]
+                            except KeyError:
+                                acc = account
+                            tags.h2(acc)
                             transactions = self.transactions.get_transactions(fi, account)
                             with tags.table(rules="cols", frame="box"):
                                 with tags.thead():
