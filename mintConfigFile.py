@@ -1,4 +1,5 @@
 import ConfigParser
+import ast
 MINT_TITLE = "Mint Connection"
 MINT_USER_USERNAME = "username"
 MINT_USER_PASSWORD = "password"
@@ -20,27 +21,17 @@ RENAME_ACCOUNT = "rename_account"
 RENAME_INSTITUTION = "rename_institution"
 
 class MintUser:
-    def __init__(self, name, email, subject, accounts, rename_accounts_str, rename_institutions_str):
+    def __init__(self, name, email, subject, accounts_str, rename_accounts_str, rename_institutions_str):
         self.name = name
         self.email = email
         self.subject = subject
         self.rename_accounts = {}
         if rename_accounts_str is not None:
-            renames = rename_accounts_str.split(",")
-            self.rename_accounts = {}
-            for rename in renames:
-                key_pair = rename.split(":")
-                self.rename_accounts[key_pair[0].replace('"', "").strip()] = key_pair[1].replace('"', "").strip()
+            self.rename_accounts = ast.literal_eval("{" + rename_accounts_str + "}")
         self.rename_institutions = {}
         if rename_institutions_str is not None:
-            renames = rename_institutions_str.split(",")
-            self.rename_institutions = {}
-            for rename in renames:
-                key_pair = rename.split(":")
-                self.rename_institutions[key_pair[0].replace('"', "").strip()] = key_pair[1].replace('"', "").strip()
-        self.accounts = accounts.split(",")
-        for i in range(0, len(self.accounts)):
-            self.accounts[i] = self.accounts[i].replace('"', "").strip()
+            self.rename_institutions = ast.literal_eval("{" + rename_institutions_str + "}")
+        self.accounts = ast.literal_eval(accounts_str)
 
 
 class MintConfigFile:
