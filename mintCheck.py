@@ -4,6 +4,7 @@ import mintReport
 import argparse
 import cPickle
 import datetime
+from dateutil.relativedelta import relativedelta
 from mintConfigFile import MintConfigFile
 
 ########################################################################################################################
@@ -13,7 +14,22 @@ from mintConfigFile import MintConfigFile
 
 
 class MintCheck:
+
+    @staticmethod
+    def get_start_date():
+        start_date = None
+        now = datetime.datetime.strptime('11/06/2016', '%m/%d/%Y')
+        if now.day == 1:
+            # first of the month: get all of last month
+            start_date = now + relativedelta(months=-1)
+        elif now.weekday() == 6:
+            # Sunday: get last weeks
+            start_date = now + relativedelta(days=-7)
+        print "getting transactions from " + str(start_date) + "..."
+        return start_date
+
     def __init__(self, dev=False):
+        self.start_date = MintCheck.get_start_date()
         self.args = None
         self.budgets = None
         self.accounts = None
@@ -28,13 +44,6 @@ class MintCheck:
             print "unpicking..."
             self.unpickle()
         else:
-            today = datetime.date.today()
-            first = today.replace(day=1)
-            last_month = first - datetime.timedelta(days=1)
-            last_month = last_month.replace(day=1)
-            start_date = last_month.strftime("%m/%d/%y")
-            print "getting transactions from " + start_date + "..."
-
             mint = mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
                                 ius_session=self.config.mint_cookie)
 
