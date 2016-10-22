@@ -5,6 +5,7 @@ MINT_USER_USERNAME = "username"
 MINT_USER_PASSWORD = "password"
 MINT_COOKIE = "cookie"
 MINT_REMOVE_DUPLICATES ="remove_duplicates"
+WARNING_KEYWORDS =  "warning_keywords"
 
 EMAIL_TITLE = "Email Connection"
 EMAIL_USER_USERNAME = "username"
@@ -42,6 +43,7 @@ class MintConfigFile:
         self.mint_password = config.get(MINT_TITLE, MINT_USER_PASSWORD)
         self.mint_cookie = config.get(MINT_TITLE, MINT_COOKIE)
         self.mint_remove_duplicates = config.get(MINT_TITLE, MINT_REMOVE_DUPLICATES)
+        self.warning_keywords = ast.literal_eval("[" + config.get(MINT_TITLE, WARNING_KEYWORDS) + "]")
 
         self.email_username = config.get(EMAIL_TITLE, EMAIL_USER_USERNAME)
         self.email_password = config.get(EMAIL_TITLE, EMAIL_USER_PASSWORD)

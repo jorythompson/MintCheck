@@ -1,20 +1,19 @@
 import dominate.tags as tags
-WARNINGS = ["fee", "charge"]
+from emailSender import EmailSender
+
 BORDER_STYLE = "border-bottom:1px solid black"
 
 
 class PrettyPrint:
-    def __init__(self, users, budgets, accounts, transactions, net_worth, email_sender):
-        self.users = users
+    def __init__(self, budgets, accounts, transactions, config):
+        self.config = config
         self.budgets = budgets
         self.accounts = accounts
         self.transactions = transactions
-        self.net_worth = net_worth
         self.doc = None
-        self.email_sender = email_sender
 
     def save(self):
-        for user in self.users:
+        for user in self.config.users:
             bad_transactions = []
             html = tags.html()
             with html.add(tags.body()).add(tags.div(id='content')):
@@ -52,7 +51,7 @@ class PrettyPrint:
                                     with tags.tbody():
                                         with tags.tbody():
                                             color = "white"
-                                            for warning in WARNINGS:
+                                            for warning in self.config.warning_keywords:
                                                 if warning in transaction.merchant().lower():
                                                     bad_transactions.append(transaction)
                                                     color = "red"
@@ -61,7 +60,8 @@ class PrettyPrint:
                                             tags.td(transaction.merchant(), bgcolor=color)
                                             if transaction.is_debit():
                                                 tags.td("", bgcolor=color)
-                                                tags.td("-" + transaction.amount(), style="text-align:right", bgcolor=color)
+                                                tags.td("-" + transaction.amount(), style="text-align:right",
+                                                        bgcolor=color)
                                             else:
                                                 tags.td(transaction.amount(), style="text-align:right", bgcolor=color)
                                                 tags.td("", bgcolor=color)
@@ -72,6 +72,7 @@ class PrettyPrint:
                     with tags.thead():
                         tags.th("Date")
                         tags.th("Financial Institution")
+                        tags.th("Account")
                         tags.th("Merchant")
                         tags.th("Amount", colspan="2", style=BORDER_STYLE)
                         tags.tr()
@@ -84,7 +85,16 @@ class PrettyPrint:
                         with tags.tbody():
                             with tags.tbody():
                                 tags.td(transaction.date().strftime('%b %d'))
-                                tags.td(transaction.fi())
+                                try:
+                                    f = user.rename_institutions[transaction.fi()]
+                                except KeyError:
+                                    f = transaction.fi()
+                                tags.td(f)
+                                try:
+                                    a = user.rename_accounts[transaction.account()]
+                                except KeyError:
+                                    a = transaction.account()
+                                tags.td(a)
                                 tags.td(transaction.merchant())
                                 if transaction.is_debit():
                                     tags.td("")
@@ -93,7 +103,9 @@ class PrettyPrint:
                                     tags.td(transaction.amount(), style="text-align:right")
                                     tags.td("")
 
-            self.email_sender.send(user.email, user.subject, str(html2) + str(html))
+            email_sender = EmailSender(self.config.email_username, self.config.email_password,
+                                       self.config.email_user_from)
+            email_sender.send(user.email, user.subject, str(html2) + str(html))
             with open(user.name + ".html", 'w') as f:
                 f.write(str(html))
             with open(user.name + "_header.html", 'w') as f:

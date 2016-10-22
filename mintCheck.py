@@ -5,7 +5,7 @@ import argparse
 import cPickle
 import datetime
 from mintConfigFile import MintConfigFile
-from emailSender import EmailSender
+
 
 class MintCheck:
     def __init__(self, dev=False):
@@ -13,14 +13,11 @@ class MintCheck:
         self.budgets = None
         self.accounts = None
         self.transactions = None
-        self.net_worth = None
         self.users = None
         self.mint_budgets = None
         self.mint_transactions = None
         self.args = MintCheck.get_args()
         self.config = MintConfigFile(self.args.config)
-        self.users = self.config.users
-        self.email_sender = EmailSender(self.config.email_username, self.config.email_password, self.config.email_user_from)
 
         if dev:
             print "unpicking..."
@@ -33,7 +30,8 @@ class MintCheck:
             start_date = last_month.strftime("%m/%d/%y")
             print "getting transactions from " + start_date + "..."
 
-            mint = mintapi.Mint(email=self.config.username, password=self.config.password, ius_session=self.config.cookie)
+            mint = mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
+                                ius_session=self.config.mint_cookie)
 
             # Get basic account information
             # accounts = mint.get_accounts()
@@ -53,8 +51,8 @@ class MintCheck:
                                                            start_date=start_date)
 
             # Get net worth
-            print "getting net worth..."
-            self.net_worth = mint.get_net_worth()
+            #print "getting net worth..."
+            #self.net_worth = mint.get_net_worth()
 
             print "pickling..."
             self.pickle()
@@ -82,8 +80,7 @@ class MintCheck:
         return parser.parse_args()
 
     def pretty_print(self):
-        return mintReport.PrettyPrint(self.users, self.mint_budgets, self.accounts, self.mint_transactions,
-                                      self.net_worth, self.email_sender)
+        return mintReport.PrettyPrint(self.mint_budgets, self.accounts, self.mint_transactions, self.config)
 
     def pickle(self):
         with open('filename.pickle', 'wb') as handle:
@@ -122,7 +119,7 @@ def main():
     # print mint.get_transactions_csv(include_investment=False) # as raw csv data
     # print mint.get_transactions_json(include_investment=False, skip_duplicates=False)
 
-    print mint_check.net_worth
+    #print mint_check.net_worth
     print "Done!"
 
 if __name__ == "__main__":
