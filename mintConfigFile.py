@@ -1,5 +1,6 @@
 import ConfigParser
 import ast
+from emailSender import EmailConnection
 MINT_TITLE = "Mint Connection"
 MINT_USER_USERNAME = "username"
 MINT_USER_PASSWORD = "password"
@@ -7,19 +8,15 @@ MINT_COOKIE = "cookie"
 MINT_REMOVE_DUPLICATES ="remove_duplicates"
 WARNING_KEYWORDS =  "warning_keywords"
 
-EMAIL_TITLE = "Email Connection"
-EMAIL_USER_USERNAME = "username"
-EMAIL_USER_PASSWORD = "password"
-EMAIL_USER_FROM = "from"
-
-SKIP_TITLES = [MINT_TITLE, EMAIL_TITLE]
-
 # USER block
 USER_EMAIL = "email"
 USER_SUBJECT = "subject"
 USER_ACCOUNTS = "accounts"
 RENAME_ACCOUNT = "rename_account"
 RENAME_INSTITUTION = "rename_institution"
+
+SKIP_TITLES = [MINT_TITLE, EmailConnection.TITLE]
+
 
 class MintUser:
     def __init__(self, name, email, subject, accounts_str, rename_accounts_str, rename_institutions_str):
@@ -44,10 +41,7 @@ class MintConfigFile:
         self.mint_cookie = config.get(MINT_TITLE, MINT_COOKIE)
         self.mint_remove_duplicates = config.get(MINT_TITLE, MINT_REMOVE_DUPLICATES)
         self.warning_keywords = ast.literal_eval("[" + config.get(MINT_TITLE, WARNING_KEYWORDS) + "]")
-
-        self.email_username = config.get(EMAIL_TITLE, EMAIL_USER_USERNAME)
-        self.email_password = config.get(EMAIL_TITLE, EMAIL_USER_PASSWORD)
-        self.email_user_from = config.get(EMAIL_TITLE, EMAIL_USER_FROM)
+        self.email_connection = EmailConnection(config)
 
         self.users = []
 
