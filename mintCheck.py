@@ -6,6 +6,11 @@ import cPickle
 import datetime
 from mintConfigFile import MintConfigFile
 
+########################################################################################################################
+# put a script into /etc/cron.daily (or under /etc/cron.X) and run the following to verify:
+# run-parts --test /etc/cron.daily
+########################################################################################################################
+
 
 class MintCheck:
     def __init__(self, dev=False):
