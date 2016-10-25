@@ -3,7 +3,7 @@ from email.mime.text import MIMEText
 from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
 import ConfigParser
-
+import logging
 
 class EmailConnection:
     TITLE = "Email Connection"
@@ -23,10 +23,12 @@ class EmailConnection:
 
 
 class EmailSender:
-    def __init__(self, email_connection):
+    def __init__(self, email_connection, logger):
         self.email_connection = email_connection
+        self.logger = logger
 
     def send(self, to_email, subject, message):
+        self.logger.debug("starting send")
         msg = MIMEMultipart()
         msg['From'] = self.email_connection.from_user
         msg['To'] = to_email
@@ -40,9 +42,9 @@ class EmailSender:
             server.login(self.email_connection.username, self.email_connection.password)
             server.sendmail(self.email_connection.username, to_email, msg.as_string())
             server.quit()
-            print "Successfully sent mail to " + to_email
+            self.logger.debug("Successfully sent mail to " + to_email)
         except smtplib.SMTPAuthenticationError as e:
-            print "Failed to send mail to " + to_email
+            self.logger.warn("Failed to send mail to " + to_email)
 
 
 if __name__ == "__main__":
@@ -50,5 +52,5 @@ if __name__ == "__main__":
     mail.send("jorythompson@gmail.com", "this is a test from emailSender", "Here is the message using parameters passed in")
     config = ConfigParser.ConfigParser()
     config.read("laptop-home.ini")
-    mail = EmailSender(EmailConnection(config))
+    mail = EmailSender(EmailConnection(config, logging.getLogger("emailSender_test")))
     mail.send("jorythompson@gmail.com", "this is a test from emailSender", "Here is the message using the configuration file")

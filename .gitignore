@@ -4,3 +4,7 @@ work.ini
 laptop-home.ini
 laptop.ini
 *.html
+*.pyc
+log.*
+*.log
+pickle.*

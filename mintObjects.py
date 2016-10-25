@@ -10,26 +10,27 @@ class MintTransactions:
         self.obj = obj
         self.transactions = []
         for transaction in obj:
-                self.transactions.append(MintTransaction(transaction))
+            self.transactions.append(MintTransaction(transaction))
 
-    def get_financial_institutions(self):
+    def get_financial_institutions(self, start_date):
         fis = []
         for transaction in self.transactions:
-            if transaction.fi() not in fis:
+            if transaction.fi() not in fis and transaction.date() >= start_date:
                 fis.append(transaction.fi())
         return fis
 
-    def get_accounts(self, fi):
+    def get_accounts(self, fi, start_date):
         accounts = []
         for transaction in self.transactions:
-            if transaction.fi() == fi and transaction.account() not in accounts:
+            if transaction.fi() == fi and transaction.account() not in accounts and transaction.date() >= start_date:
                 accounts.append(transaction.account())
         return accounts
 
-    def get_transactions(self, fi, account):
+    def get_transactions(self, fi, account, start_date):
         transactions = []
         for transaction in self.transactions:
-            if transaction.fi() == fi and transaction.account() == account and transaction.account() not in transactions:
+            if transaction.fi() == fi and transaction.account() == account and \
+                            transaction.account() not in transactions and transaction.date() >= start_date:
                 transactions.append(transaction)
         return MintTransactions.sort_by_key(transactions, 'date')
 #        sorted_transactions = sorted(transactions, key=itemgetter('date'))

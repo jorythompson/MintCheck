@@ -4,6 +4,7 @@ import mintReport
 import argparse
 import cPickle
 import datetime
+import logging
 from dateutil.relativedelta import relativedelta
 from mintConfigFile import MintConfigFile
 
@@ -14,75 +15,34 @@ from mintConfigFile import MintConfigFile
 
 
 class MintCheck:
+    PICKLE_FILE = "\\\\andraia\\jordan\\pythonDevelopment\\mintToEvernote\\MintCheck\\pickle.txt"
 
-    @staticmethod
-    def get_start_date():
-        start_date = None
-        now = datetime.datetime.strptime('11/06/2016', '%m/%d/%Y')
-        if now.day == 1:
-            # first of the month: get all of last month
-            start_date = now + relativedelta(months=-1)
-        elif now.weekday() == 6:
-            # Sunday: get last weeks
-            start_date = now + relativedelta(days=-7)
-        print "getting transactions from " + str(start_date) + "..."
-        return start_date
-
-    def __init__(self, dev=False):
-        self.start_date = MintCheck.get_start_date()
+    def __init__(self):
         self.args = None
-        self.budgets = None
+        # self.budgets = None
         self.accounts = None
         self.transactions = None
-        self.users = None
         self.mint_budgets = None
         self.mint_transactions = None
         self.args = MintCheck.get_args()
         self.config = MintConfigFile(self.args.config)
+        self.logger = self.config.logger
 
-        if dev:
-            print "unpicking..."
+    def _get_data(self, start_date):
+        if self.config.general_dev_only:
+            self.logger.debug("unpicking...")
             self.unpickle()
         else:
             mint = mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
                                 ius_session=self.config.mint_cookie)
-
-            # Get basic account information
-            # accounts = mint.get_accounts()
-            # Get extended account detail at the expense of speed - requires an
-            # additional API call for each account
-            print "getting accounts..."
-            self.accounts = mint.get_accounts(get_detail=True)
-
-            # Get budget information
-            print "getting budgets..."
-            self.budgets = mint.get_budgets()
-
-            # Get transactions
-            # transactions = mint.get_transactions()  # as pandas dataframe
-            # print mint.get_transactions_csv(include_investment=False) # as raw csv data
             self.transactions = mint.get_transactions_json(include_investment=False, skip_duplicates=False,
-                                                           start_date=start_date)
-
-            # Get net worth
-            #print "getting net worth..."
-            #self.net_worth = mint.get_net_worth()
-
-            print "pickling..."
+                                                           start_date=start_date.strftime('%m/%d/%y'))
+            self.logger.debug("getting accounts...")
+            self.accounts = mint.get_accounts(get_detail=True)
+            self.logger.debug("pickling...")
             self.pickle()
-
-        print "getting Budgets..."
-        self.mint_budgets = self.get_budgets()
-        #    mint_budgets.dump()
-
-        print "getting Transactions..."
+        self.logger.debug("getting Transactions...")
         self.mint_transactions = self.get_transactions()
-
-    #    mint_transactions.dump()
-
-    def get_budgets(self):
-        print "getting Budgets..."
-        return mintObjects.MintBudgets(self.budgets)
 
     def get_transactions(self):
         return mintObjects.MintTransactions(self.transactions)
@@ -93,48 +53,64 @@ class MintCheck:
         parser.add_argument('--config', help='Configuration file containing your username, password, and mint cookie')
         return parser.parse_args()
 
-    def pretty_print(self):
-        return mintReport.PrettyPrint(self.mint_budgets, self.accounts, self.mint_transactions, self.config)
+    def get_start_date(self, data_needed):
+        now = datetime.datetime.now()
+        # now = datetime.datetime.strptime('10/04/2016', '%m/%d/%Y')
+
+        if now.day == 1 and "monthly" in data_needed and now.strftime("%A").lower() == self.config.general_week_start.lower() and "weekly" in data_needed:
+            start_date = now + relativedelta(months=-1)
+            frequency = ["monthly", "weekly", "daily"]
+        elif now.day == 1 and "monthly" in data_needed:
+            # first of the month: get all of last month
+            start_date = now + relativedelta(months=-1)
+            frequency = ["daily", "monthly"]
+        elif now.strftime("%A").lower() == self.config.general_week_start.lower() and "weekly" in data_needed:
+            # Sunday: get last weeks
+            start_date = now + relativedelta(days=-7)
+            frequency = ["daily", "weekly"]
+        elif "daily" in data_needed:
+            start_date = now + relativedelta(days=-1)
+            frequency = ["daily"]
+        else:
+            start_date = None
+            frequency = None
+        self.logger.debug("getting transactions from " + str(start_date) + "...")
+        return start_date, frequency
+
+    def collect_and_send(self):
+        data_needed = []
+        for user in self.config.users:
+            for frequency in user.frequency:
+                if frequency not in data_needed:
+                    data_needed.append(frequency)
+
+        start_date, frequency = self.get_start_date(data_needed)
+        if start_date is not None:
+            self._get_data(start_date)
+            report = mintReport.PrettyPrint(self.accounts, self.mint_transactions, self.config, start_date, self.logger)
+            report.send_data(frequency)
 
     def pickle(self):
-        with open('filename.pickle', 'wb') as handle:
-            cPickle.dump(self.budgets, handle)
+        with open(MintCheck.PICKLE_FILE, 'wb') as handle:
+            # cPickle.dump(self.budgets, handle)
             cPickle.dump(self.accounts, handle)
             cPickle.dump(self.transactions, handle)
-            cPickle.dump(self.net_worth, handle)
+            # cPickle.dump(self.net_worth, handle)
 
     def unpickle(self):
-        with open('filename.pickle', 'rb') as handle:
-            self.budgets = cPickle.load(handle)
+        with open(MintCheck.PICKLE_FILE, 'rb') as handle:
+            # self.budgets = cPickle.load(handle)
             self.accounts = cPickle.load(handle)
             self.transactions = cPickle.load(handle)
-            self.net_worth = cPickle.load(handle)
+            # self.net_worth = cPickle.load(handle)
 
 
 def main():
-    mint_check = MintCheck(dev=True)
-
-        # Initiate an account refresh
-
-#        print "refreshing..."
-#        refresh = mint.initiate_account_refresh()
-#        print "done!"
-#        print refresh
-
-#    for account in accounts:
-#        acc = mintObjects.MintAccount(account)
-#        acc.dump()
-
-    print "Creating HTML..."
-    report = mint_check.pretty_print()
-
-    print "Saving HTML..."
-    report.save()
-    # print mint.get_transactions_csv(include_investment=False) # as raw csv data
-    # print mint.get_transactions_json(include_investment=False, skip_duplicates=False)
-
-    #print mint_check.net_worth
-    print "Done!"
+    mint_check = MintCheck()
+    logger = mint_check.logger
+    logger.debug("Creating HTML...")
+    mint_check.collect_and_send()
+    logger.debug("Done!")
 
 if __name__ == "__main__":
     main()
