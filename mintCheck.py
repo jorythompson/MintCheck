@@ -51,7 +51,7 @@ class MintCheck:
 
     def get_start_date(self, data_needed):
         now = datetime.datetime.now()
-        now = datetime.datetime.strptime('10/01/2016', '%m/%d/%Y')
+        # now = datetime.datetime.strptime('10/01/2016', '%m/%d/%Y')
 
         if now.day == 1 and "monthly" in data_needed and now.strftime("%A").lower() == self.config.general_week_start.lower() and "weekly" in data_needed:
             start_date = now + relativedelta(months=-1)

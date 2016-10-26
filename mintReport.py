@@ -2,8 +2,6 @@ import dominate.tags as tags
 from emailSender import EmailSender
 import datetime
 from dateutil.relativedelta import relativedelta
-from mintObjects import  MintAccount
-import logging
 
 BORDER_STYLE = "border-bottom:1px solid black"
 
@@ -48,16 +46,19 @@ class PrettyPrint:
                                 mint_account = self.accounts.get_account(account_name)
                                 account_type = str(mint_account.account_type())
                                 account_message = "This"
+                                account_color = "green"
                                 if "bank" in account_type.lower():
                                     account_message += " is a bank account"
                                 elif "credit" in account_type.lower():
                                     account_message += " credit card"
+                                    account_color = "orange"
                                     next_payment_amount = mint_account.next_payment_amount()
                                     next_payment_date = mint_account.next_payment_date()
                                     if next_payment_amount is None or next_payment_amount == 0:
                                         account_message += " has nothing due but the payment date is normally on " +\
                                                            str(next_payment_date)
                                     else:
+                                        account_color = "red"
                                         if next_payment_date is None:
                                             next_payment_date = "<unknown>"
                                         account_message += " has an amount of " + (next_payment_amount) + " due on " + str(next_payment_date)
@@ -75,7 +76,7 @@ class PrettyPrint:
                                 except KeyError:
                                     acc = account_name
                                 tags.h2(acc)
-                                tags.h3(account_message)
+                                tags.h3(account_message, style="color:" + account_color)
                                 transactions = self.transactions.get_transactions(fi, account_name, start_date)
                                 with tags.table(rules="cols", frame="box"):
                                     with tags.thead():
