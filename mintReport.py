@@ -2,6 +2,7 @@ import dominate.tags as tags
 from emailSender import EmailSender
 import datetime
 from dateutil.relativedelta import relativedelta
+from mintObjects import  MintAccount
 import logging
 
 BORDER_STYLE = "border-bottom:1px solid black"
@@ -40,10 +41,28 @@ class PrettyPrint:
                     fis = self.transactions.get_financial_institutions(start_date)
                     fis_title_saved = False
                     for fi in fis:
-                        accounts = self.transactions.get_accounts(fi, start_date)
-                        for account in accounts:
-                            account = str(account)
-                            if account in user.accounts or "all" in user.accounts:
+                        account_names = self.transactions.get_accounts(fi, start_date)
+                        for account_name in account_names:
+                            account_name = str(account_name)
+                            if account_name in user.accounts or "all" in user.accounts:
+                                mint_account = self.accounts.get_account(account_name)
+                                account_type = str(mint_account.account_type())
+                                account_message = "This"
+                                if "bank" in account_type.lower():
+                                    account_message += " is a bank account"
+                                elif "credit" in account_type.lower():
+                                    account_message += " credit card"
+                                    next_payment_amount = mint_account.next_payment_amount()
+                                    next_payment_date = mint_account.next_payment_date()
+                                    if next_payment_amount is None or next_payment_amount == 0:
+                                        account_message += " has nothing due but the payment date is normally on " +\
+                                                           str(next_payment_date)
+                                    else:
+                                        if next_payment_date is None:
+                                            next_payment_date = "<unknown>"
+                                        account_message += " has an amount of " + (next_payment_amount) + " due on " + str(next_payment_date)
+                                else:
+                                    account_message = account_type.strip()
                                 if not fis_title_saved:
                                     try:
                                         f = user.rename_institutions[fi]
@@ -52,11 +71,12 @@ class PrettyPrint:
                                     tags.h1(f)
                                     fis_title_saved = True
                                 try:
-                                    acc = user.rename_accounts[account]
+                                    acc = user.rename_accounts[account_name]
                                 except KeyError:
-                                    acc = account
+                                    acc = account_name
                                 tags.h2(acc)
-                                transactions = self.transactions.get_transactions(fi, account, start_date)
+                                tags.h3(account_message)
+                                transactions = self.transactions.get_transactions(fi, account_name, start_date)
                                 with tags.table(rules="cols", frame="box"):
                                     with tags.thead():
                                         tags.th("Date")

@@ -83,7 +83,7 @@ class MintConfigFile:
         self.logger.setLevel(level)
         handler = logging.FileHandler(self.log_file)
         handler.setLevel(level)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s:%(levelname)s: %(message)s')
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
         if log_console:
@@ -99,4 +99,4 @@ class MintConfigFile:
 
 if __name__ == "__main__":
     mint_config = MintConfigFile("home.ini")
-    print "Done"
+    mint_config.logger.info("Done")

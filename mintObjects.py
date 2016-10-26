@@ -714,6 +714,24 @@ class MintBudgets:
             budget.dump()
 
 
+class MintAccounts:
+    ##############################################
+    # __init__: constructor for a MintAccounts
+    # obj:      string that describes a group of accounts
+    ##############################################
+    def __init__(self, obj):
+        self.obj = obj
+        self.accounts = []
+        for account in obj:
+            self.accounts.append(MintTransaction(account))
+
+    def get_account(self, name):
+        for account in self.accounts:
+            if account["accountName"] == name:
+                return account
+        return None
+
+
 class MintAccount:
     ##############################################
     # __init__: constructor for a MintBudget

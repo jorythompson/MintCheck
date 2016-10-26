@@ -21,8 +21,6 @@ class MintCheck:
         self.args = None
         # self.budgets = None
         self.accounts = None
-        self.transactions = None
-        self.mint_budgets = None
         self.mint_transactions = None
         self.args = MintCheck.get_args()
         self.config = MintConfigFile(self.args.config)
@@ -33,19 +31,17 @@ class MintCheck:
             self.logger.debug("unpicking...")
             self.unpickle()
         else:
+            self.logger.debug("Connecting to Mint...")
             mint = mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
                                 ius_session=self.config.mint_cookie)
-            self.transactions = mint.get_transactions_json(include_investment=False, skip_duplicates=False,
-                                                           start_date=start_date.strftime('%m/%d/%y'))
+            self.logger.debug(("Getting transactions..."))
+            self.mint_transactions = mintObjects.MintTransactions(
+                mint.get_transactions_json(include_investment=False, skip_duplicates=False,
+                                           start_date=start_date.strftime('%m/%d/%y')))
             self.logger.debug("getting accounts...")
-            self.accounts = mint.get_accounts(get_detail=True)
+            self.accounts = mintObjects.MintAccounts(mint.get_accounts(get_detail=True))
             self.logger.debug("pickling...")
             self.pickle()
-        self.logger.debug("getting Transactions...")
-        self.mint_transactions = self.get_transactions()
-
-    def get_transactions(self):
-        return mintObjects.MintTransactions(self.transactions)
 
     @staticmethod
     def get_args():
@@ -55,7 +51,7 @@ class MintCheck:
 
     def get_start_date(self, data_needed):
         now = datetime.datetime.now()
-        # now = datetime.datetime.strptime('10/04/2016', '%m/%d/%Y')
+        now = datetime.datetime.strptime('10/01/2016', '%m/%d/%Y')
 
         if now.day == 1 and "monthly" in data_needed and now.strftime("%A").lower() == self.config.general_week_start.lower() and "weekly" in data_needed:
             start_date = now + relativedelta(months=-1)
@@ -94,21 +90,20 @@ class MintCheck:
         with open(MintCheck.PICKLE_FILE, 'wb') as handle:
             # cPickle.dump(self.budgets, handle)
             cPickle.dump(self.accounts, handle)
-            cPickle.dump(self.transactions, handle)
+            cPickle.dump(self.mint_transactions, handle)
             # cPickle.dump(self.net_worth, handle)
 
     def unpickle(self):
         with open(MintCheck.PICKLE_FILE, 'rb') as handle:
             # self.budgets = cPickle.load(handle)
             self.accounts = cPickle.load(handle)
-            self.transactions = cPickle.load(handle)
+            self.mint_transactions = cPickle.load(handle)
             # self.net_worth = cPickle.load(handle)
 
 
 def main():
     mint_check = MintCheck()
     logger = mint_check.logger
-    logger.debug("Creating HTML...")
     mint_check.collect_and_send()
     logger.debug("Done!")
 
