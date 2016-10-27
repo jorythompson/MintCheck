@@ -2,6 +2,10 @@ import ConfigParser
 import ast
 import logging
 from emailSender import EmailConnection
+import locale
+import platform
+import sys
+
 # mint connection block
 MINT_TITLE = "Mint Connection"
 MINT_USER_USERNAME = "username"
@@ -21,19 +25,24 @@ GENERAL_LOG_CONSOLE = "log_console"
 # USER block
 USER_EMAIL = "email"
 USER_SUBJECT = "subject"
-USER_ACCOUNTS = "accounts"
+USER_ACTIVE_ACCOUNTS = "active_accounts"
+USER_ACCOUNT_TOTALS = "account_totals"
 USER_FREQUENCY = "frequency" # daily, weekly, monthly
 USER_RENAME_ACCOUNT = "rename_account"
 USER_RENAME_INSTITUTION = "rename_institution"
 
-SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE]
+LOCALE_TITLE = "locale"
+DEBIAN_LOCALE = "debian"
+WINDOWS_LOCALE = "windows"
+
+SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE]
 
 
 class MintUser:
 
     def __init__(self, name, config):
         self.name = name
-        self.email = config.get(name, USER_EMAIL)
+        self.email = ast.literal_eval("[" + config.get(name, USER_EMAIL) + "]")
         try:
             self.subject = config.get(name, USER_SUBJECT)
         except Exception:
@@ -43,14 +52,18 @@ class MintUser:
         except Exception:
             self.frequency = "weekly"
         try:
-            self.rename_accounts = ast.literal_eval("{" +  config.get(name, USER_RENAME_ACCOUNT) + "}")
+            self.rename_accounts = ast.literal_eval("{" + config.get(name, USER_RENAME_ACCOUNT) + "}")
         except Exception:
             self.rename_accounts = {}
         try:
             self.rename_institutions = ast.literal_eval("{" + config.get(name, USER_RENAME_INSTITUTION) + "}")
         except Exception:
             self.rename_institutions = {}
-        self.accounts = ast.literal_eval("[" + config.get(name, USER_ACCOUNTS) + "]")
+        try:
+            self.account_totals = ast.literal_eval("[" + config.get(name, USER_ACCOUNT_TOTALS) + "]")
+        except Exception:
+            self.account_totals = {}
+        self.active_accounts = ast.literal_eval("[" + config.get(name, USER_ACTIVE_ACCOUNTS) + "]")
 
 
 class MintConfigFile:
@@ -64,6 +77,11 @@ class MintConfigFile:
         self.mint_warning_keywords = ast.literal_eval("[" + config.get(MINT_TITLE, MINT_WARNING_KEYWORDS) + "]")
         self.general_week_start = config.get(GENERAL_TITLE, GENERAL_WEEK_START)
         self.logger = logging.getLogger("mintConfig")
+        try:
+            locale.setlocale(locale.LC_ALL, config.get(LOCALE_TITLE, platform.system()))
+        except Exception:
+            print "\"" + platform.system() + "\" must be set under [" + LOCALE_TITLE + "] in the configuration settings"
+            sys.exit()
         try:
             self.log_file = config.get(GENERAL_TITLE, GENERAL_LOG_FILE)
         except Exception:

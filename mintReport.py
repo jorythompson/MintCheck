@@ -1,49 +1,52 @@
 import dominate.tags as tags
 from emailSender import EmailSender
-import datetime
 from dateutil.relativedelta import relativedelta
+import locale
 
 BORDER_STYLE = "border-bottom:1px solid black"
 
 
 class PrettyPrint:
-    def __init__(self, accounts, transactions, config, start_date, logger):
+    def __init__(self, accounts, transactions, config, start_date, now, logger):
         self.config = config
         self.accounts = accounts
         self.transactions = transactions
         self.start_date = start_date
+        self.now = now
         self.doc = None
         self.logger = logger
 
     def send_data(self, frequency):
         self.logger.debug("starting send_data")
-        # now = datetime.datetime.now()
-        now = datetime.datetime.strptime('10/04/2016', '%m/%d/%Y')
+        user_accounts = {}
         for user in self.config.users:
+            self.logger.debug("handling user:" + user.name)
             start_date = None
             report_frequency = None
             if "monthly" in user.frequency and "monthly" in frequency:
                 start_date = self.start_date
                 report_frequency = "monthly"
             elif "weekly" in user.frequency and "weekly" in frequency:
-                start_date = now + relativedelta(days=-7)
+                start_date = self.now + relativedelta(days=-7)
                 report_frequency = "weekly"
             elif "daily" in user.frequency and "daily" in frequency:
-                start_date = now + relativedelta(days=-1)
+                start_date = self.now + relativedelta(days=-1)
                 report_frequency = "daily"
+            activity_html = ""
             if start_date is not None:
                 bad_transactions = []
                 transactions = []
-                html = tags.html()
-                with html.add(tags.body()).add(tags.div(id='content')):
+                activity_html = tags.html()
+                with activity_html.add(tags.body()).add(tags.div(id='content')):
                     fis = self.transactions.get_financial_institutions(start_date)
                     fis_title_saved = False
                     for fi in fis:
                         account_names = self.transactions.get_accounts(fi, start_date)
                         for account_name in account_names:
                             account_name = str(account_name)
-                            if account_name in user.accounts or "all" in user.accounts:
+                            if account_name in user.active_accounts or "all" in user.active_accounts:
                                 mint_account = self.accounts.get_account(account_name)
+                                user_accounts[user] = mint_account
                                 account_type = str(mint_account.account_type())
                                 account_message = "This"
                                 account_color = "green"
@@ -54,14 +57,15 @@ class PrettyPrint:
                                     account_color = "orange"
                                     next_payment_amount = mint_account.next_payment_amount()
                                     next_payment_date = mint_account.next_payment_date()
+                                    if next_payment_date is None:
+                                        next_payment_date = "<unknown>"
                                     if next_payment_amount is None or next_payment_amount == 0:
                                         account_message += " has nothing due but the payment date is normally on " +\
                                                            str(next_payment_date)
                                     else:
                                         account_color = "red"
-                                        if next_payment_date is None:
-                                            next_payment_date = "<unknown>"
-                                        account_message += " has an amount of " + (next_payment_amount) + " due on " + str(next_payment_date)
+                                        account_message += " has an amount of " + (next_payment_amount) + \
+                                                           " due on " + str(next_payment_date)
                                 else:
                                     account_message = account_type.strip()
                                 if not fis_title_saved:
@@ -75,9 +79,12 @@ class PrettyPrint:
                                     acc = user.rename_accounts[account_name]
                                 except KeyError:
                                     acc = account_name
-                                tags.h2(acc)
+                                transactions, total = self.transactions.get_transactions(fi, account_name, start_date)
+                                tags.h2(acc + " has a balance of " +
+                                        locale.currency(mint_account.value(), grouping=True) +
+                                        ".  Total transactions for this report is " +
+                                        locale.currency(total, grouping=True) + ".")
                                 tags.h3(account_message, style="color:" + account_color)
-                                transactions = self.transactions.get_transactions(fi, account_name, start_date)
                                 with tags.table(rules="cols", frame="box"):
                                     with tags.thead():
                                         tags.th("Date")
@@ -99,16 +106,23 @@ class PrettyPrint:
                                                         break
                                                 tags.td(transaction.date().strftime('%b %d'), bgcolor=color)
                                                 tags.td(transaction.merchant(), bgcolor=color)
+                                                amount = transaction.amount()
                                                 if transaction.is_debit():
                                                     tags.td("", bgcolor=color)
-                                                    tags.td("-" + transaction.amount(), style="text-align:right",
+                                                    amount = -amount
+                                                    tags.td(locale.currency(amount, grouping=True),
+                                                            style="text-align:right",
                                                             bgcolor=color)
                                                 else:
-                                                    tags.td(transaction.amount(), style="text-align:right", bgcolor=color)
+                                                    tags.td(locale.currency(amount, grouping=True),
+                                                            style="text-align:right",
+                                                            bgcolor=color)
                                                     tags.td("", bgcolor=color)
+                fees_html = ""
                 if len(bad_transactions) > 0:
-                    html2 = tags.html()
-                    with html2.add(tags.body()).add(tags.div(id='content')):
+                    self.logger.debug("assembling bad transactions")
+                    fees_html = tags.html()
+                    with fees_html.add(tags.body()).add(tags.div(id='content')):
                         tags.h3("The following charges should be looked into")
                         tags.h1("Fees and Charges")
                         with tags.table(rules="cols", frame="box"):
@@ -140,24 +154,57 @@ class PrettyPrint:
                                             a = transaction.account()
                                         tags.td(a)
                                         tags.td(transaction.merchant())
+                                        amount = locale.currency(transaction.amount(), grouping=True)
                                         if transaction.is_debit():
                                             tags.td("")
-                                            tags.td("-" + transaction.amount(), style="text-align:right")
+                                            tags.td("-" + amount, style="text-align:right")
                                         else:
-                                            tags.td(transaction.amount(), style="text-align:right")
+                                            tags.td(amount, style="text-align:right")
                                             tags.td("")
+                accounts = []
+                self.logger.debug("assembling accounts")
+                for account in self.accounts.accounts:
+                    for account_name in user.account_totals:
+                        if account_name == "all" or account_name == account.name():
+                            accounts.append(account)
+                accounts_html = ""
+                if len(accounts) > 0:
+                    accounts_html = tags.html()
+                    with accounts_html.add(tags.body()).add(tags.div(id='content')):
+                        tags.h1("Current Balances in Accounts")
+                        with tags.table(rules="cols", frame="box"):
+                            with tags.thead():
+                                tags.th("Financial Institution", style=BORDER_STYLE)
+                                tags.th("Account", style=BORDER_STYLE)
+                                tags.th("Amount", style=BORDER_STYLE)
+                                tags.tr()
+                            for account in accounts:
+                                with tags.tbody():
+                                    with tags.tbody():
+                                        tags.td(account.fi_name())
+                                        tags.td(account.name(), style=BORDER_STYLE)
+                                        tags.td(locale.currency(account.value(), grouping=True), style=BORDER_STYLE)
 
                 message = ""
                 if len(bad_transactions) > 0:
-                    message = str(html2)
+                    message = str(fees_html)
                 if len(transactions) > 0:
-                    message += str(html)
+                    message += str(activity_html)
+                if len(user_accounts) > 0:
+                    message += str(accounts_html)
 
-                if message != "":
-                    html = tags.html()
-                    with html.add(tags.body()).add(tags.div(id='content')):
-                        tags.h4("This " + report_frequency + " report was prepared for " + user.name + " starting on " + \
-                              start_date.strftime('%m/%d/%y'))
-                    message = str(html) + message
-                    email_sender = EmailSender(self.config.email_connection, self.logger)
-                    email_sender.send(user.email, user.subject,message)
+                if message == "":
+                    no_activity_html = tags.html()
+                    with no_activity_html.add(tags.body()).add(tags.div(id='content')):
+                        tags.h1("There was no activity for the selected accounts during this period")
+                    message = str(no_activity_html)
+
+                report_period_html = tags.html()
+                with report_period_html.add(tags.body()).add(tags.div(id='content')):
+                    tags.h4("This " + report_frequency + " report was prepared for " + user.name + " starting on " + \
+                          start_date.strftime('%m/%d/%y'))
+                message = str(report_period_html) + message
+                email_sender = EmailSender(self.config.email_connection, self.logger)
+                for email in user.email:
+                    self.logger.debug("Sending email to " + email)
+                    email_sender.send(email, user.subject,message)

@@ -4,7 +4,6 @@ import mintReport
 import argparse
 import cPickle
 import datetime
-import logging
 from dateutil.relativedelta import relativedelta
 from mintConfigFile import MintConfigFile
 
@@ -19,12 +18,16 @@ class MintCheck:
 
     def __init__(self):
         self.args = None
-        # self.budgets = None
         self.accounts = None
         self.mint_transactions = None
         self.args = MintCheck.get_args()
         self.config = MintConfigFile(self.args.config)
         self.logger = self.config.logger
+        self.now = datetime.datetime.now()
+        # self.now = datetime.datetime.strptime('10/01/2016', '%m/%d/%Y') # first of month
+        # self.now = datetime.datetime.strptime('10/27/2016', '%m/%d/%Y') # no activity for the last couple of days
+        #self.now = datetime.datetime.strptime('10/02/2016', '%m/%d/%Y')  #
+        self.logger.debug("Today is " + self.now.strftime('%m/%d/%Y'))
 
     def _get_data(self, start_date):
         if self.config.general_dev_only:
@@ -50,27 +53,25 @@ class MintCheck:
         return parser.parse_args()
 
     def get_start_date(self, data_needed):
-        now = datetime.datetime.now()
-        # now = datetime.datetime.strptime('10/01/2016', '%m/%d/%Y')
 
-        if now.day == 1 and "monthly" in data_needed and now.strftime("%A").lower() == self.config.general_week_start.lower() and "weekly" in data_needed:
-            start_date = now + relativedelta(months=-1)
+        if self.now.day == 1 and "monthly" in data_needed and self.now.strftime("%A").lower() == self.config.general_week_start.lower() and "weekly" in data_needed:
+            start_date = self.now + relativedelta(months=-1)
             frequency = ["monthly", "weekly", "daily"]
-        elif now.day == 1 and "monthly" in data_needed:
+        elif self.now.day == 1 and "monthly" in data_needed:
             # first of the month: get all of last month
-            start_date = now + relativedelta(months=-1)
+            start_date = self.now + relativedelta(months=-1)
             frequency = ["daily", "monthly"]
-        elif now.strftime("%A").lower() == self.config.general_week_start.lower() and "weekly" in data_needed:
+        elif self.now.strftime("%A").lower() == self.config.general_week_start.lower() and "weekly" in data_needed:
             # Sunday: get last weeks
-            start_date = now + relativedelta(days=-7)
+            start_date = self.now + relativedelta(days=-7)
             frequency = ["daily", "weekly"]
         elif "daily" in data_needed:
-            start_date = now + relativedelta(days=-1)
+            start_date = self.now + relativedelta(days=-1)
             frequency = ["daily"]
         else:
             start_date = None
             frequency = None
-        self.logger.debug("getting transactions from " + str(start_date) + "...")
+        self.logger.debug("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
         return start_date, frequency
 
     def collect_and_send(self):
@@ -83,7 +84,8 @@ class MintCheck:
         start_date, frequency = self.get_start_date(data_needed)
         if start_date is not None:
             self._get_data(start_date)
-            report = mintReport.PrettyPrint(self.accounts, self.mint_transactions, self.config, start_date, self.logger)
+            report = mintReport.PrettyPrint(self.accounts, self.mint_transactions, self.config, start_date, self.now,
+                                            self.logger)
             report.send_data(frequency)
 
     def pickle(self):

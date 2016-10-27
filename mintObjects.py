@@ -28,11 +28,17 @@ class MintTransactions:
 
     def get_transactions(self, fi, account, start_date):
         transactions = []
+        total = 0.0
         for transaction in self.transactions:
             if transaction.fi() == fi and transaction.account() == account and \
                             transaction.account() not in transactions and transaction.date() >= start_date:
                 transactions.append(transaction)
-        return MintTransactions.sort_by_key(transactions, 'date')
+                amount = transaction.amount()
+                if transaction.is_debit():
+                    total -= amount
+                else:
+                    total += amount
+        return MintTransactions.sort_by_key(transactions, 'date'), total
 #        sorted_transactions = sorted(transactions, key=itemgetter('date'))
 #        sorted_transactions = sorted(transactions, key=lambda k: k['date'])
 #        return sorted_transactions
@@ -57,6 +63,12 @@ class MintTransactions:
             transaction.dump()
 
 
+def str_to_float(str_in):
+    if str_in is None:
+        return 0
+    return float(str_in.replace("$", "").replace(",", ""))
+
+
 class MintTransaction:
     ##############################################
     # __init__: constructor for a MintTransaction
@@ -79,13 +91,13 @@ class MintTransaction:
 
     def next_payment_amount(self):
         try:
-            return self.obj['nextPaymentAmount']
+            return str_to_float(self.obj['nextPaymentAmount'])
         except KeyError:
             return None
 
     def interest_rate(self):
         try:
-            return self.obj['interestRate']
+            return str_to_float(self.obj['interestRate'])
         except KeyError:
             return None
 
@@ -97,7 +109,7 @@ class MintTransaction:
 
     def due_amount(self):
         try:
-            return self.obj['dueAmt']
+            return str_to_float(self.obj['dueAmt'])
         except KeyError:
             return None
 
@@ -518,7 +530,7 @@ class MintTransaction:
 
     def fi(self):
         try:
-            return self.obj['fi']
+            return str(self.obj['fi'])
         except KeyError:
             return None
 
@@ -548,7 +560,7 @@ class MintTransaction:
 
     def amount(self):
         try:
-            return self.obj['amount']
+            return str_to_float(self.obj['amount'])
         except KeyError:
             return None
 
@@ -898,7 +910,7 @@ class MintAccount:
 
     def value(self):
         try:
-            return self.obj['value']
+            return str_to_float(self.obj['value'])
         except KeyError:
             return None
 
