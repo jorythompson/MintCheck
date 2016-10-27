@@ -53,15 +53,18 @@ class MintCheck:
         return parser.parse_args()
 
     def get_start_date(self, data_needed):
-
-        if self.now.day == 1 and "monthly" in data_needed and self.now.strftime("%A").lower() == self.config.general_week_start.lower() and "weekly" in data_needed:
+        if self.now.day == 1 and \
+                        "monthly" in data_needed and \
+                        self.now.strftime("%A").lower() == self.config.general_week_start.lower() and \
+                        "weekly" in data_needed:
             start_date = self.now + relativedelta(months=-1)
             frequency = ["monthly", "weekly", "daily"]
         elif self.now.day == 1 and "monthly" in data_needed:
             # first of the month: get all of last month
             start_date = self.now + relativedelta(months=-1)
             frequency = ["daily", "monthly"]
-        elif self.now.strftime("%A").lower() == self.config.general_week_start.lower() and "weekly" in data_needed:
+        elif self.now.strftime("%A").lower() == self.config.general_week_start.lower() and \
+                        "weekly" in data_needed:
             # Sunday: get last weeks
             start_date = self.now + relativedelta(days=-7)
             frequency = ["daily", "weekly"]
