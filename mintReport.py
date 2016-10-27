@@ -190,7 +190,7 @@ class PrettyPrint:
                     message = str(fees_html)
                 if len(transactions) > 0:
                     message += str(activity_html)
-                if len(user_accounts) > 0:
+                if len(accounts) > 0:
                     message += str(accounts_html)
 
                 if message == "":
