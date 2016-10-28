@@ -9,7 +9,8 @@ import datetime
 from dateutil.relativedelta import relativedelta
 from mintConfigFile import MintConfigFile
 from emailSender import EmailSender
-
+from random import randint
+import time
 
 ########################################################################################################################
 # put a script into /etc/cron.daily (or under /etc/cron.X) and run the following to verify:
@@ -138,4 +139,8 @@ def main():
     logger.debug("Done!")
 
 if __name__ == "__main__":
+    sleep_time = randint(0, 60*20) # between 0 and 10 minutes
+    print "starting to sleep at:" + datetime.datetime.now().strftime('%H:%M:%S') + " for " +\
+          datetime.datetime.fromtimestamp(sleep_time).strftime('%M:%S')
+    time.sleep(sleep_time)
     main()
