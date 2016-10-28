@@ -5,6 +5,7 @@ from email.MIMEText import MIMEText
 import ConfigParser
 import logging
 
+
 class EmailConnection:
     TITLE = "Email Connection"
     USERNAME = "username"
@@ -28,7 +29,7 @@ class EmailSender:
         self.logger = logger
 
     def send(self, to_email, subject, message):
-        self.logger.debug("starting send")
+        self.logger.debug("starting to send email to " + to_email)
         msg = MIMEMultipart()
         msg['From'] = self.email_connection.from_user
         msg['To'] = to_email

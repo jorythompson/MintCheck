@@ -1,3 +1,5 @@
+import sys
+import traceback
 import mintapi
 import mintObjects
 import mintReport
@@ -6,6 +8,8 @@ import cPickle
 import datetime
 from dateutil.relativedelta import relativedelta
 from mintConfigFile import MintConfigFile
+from emailSender import EmailSender
+
 
 ########################################################################################################################
 # put a script into /etc/cron.daily (or under /etc/cron.X) and run the following to verify:
@@ -21,15 +25,17 @@ class MintCheck:
         self.accounts = None
         self.mint_transactions = None
         self.args = MintCheck.get_args()
-        self.config = MintConfigFile(self.args.config)
+        self.config = MintConfigFile(self.args.config, test_email=self.args.validate_emails,
+                                     validate=self.args.validate_ini)
         self.logger = self.config.logger
         self.now = datetime.datetime.now()
         # self.now = datetime.datetime.strptime('10/01/2016', '%m/%d/%Y') # first of month
         # self.now = datetime.datetime.strptime('10/27/2016', '%m/%d/%Y') # no activity for the last couple of days
-        #self.now = datetime.datetime.strptime('10/02/2016', '%m/%d/%Y')  #
+        # self.now = datetime.datetime.strptime('10/02/2016', '%m/%d/%Y')  #
         self.logger.debug("Today is " + self.now.strftime('%m/%d/%Y'))
 
     def _get_data(self, start_date):
+        self.logger.debug("getting data...")
         if self.config.general_dev_only:
             self.logger.debug("unpicking...")
             self.unpickle()
@@ -49,7 +55,9 @@ class MintCheck:
     @staticmethod
     def get_args():
         parser = argparse.ArgumentParser(description='Read Information from Mint')
-        parser.add_argument('--config', help='Configuration file containing your username, password, and mint cookie')
+        parser.add_argument('--config', required=True, help='Configuration file containing your username, password, and mint cookie')
+        parser.add_argument('--validate_ini', action="store_true", default=False, help='Validates the input configuration file')
+        parser.add_argument('--validate_emails',  action="store_true", default=False, help='Validates sending emails to all users in the configuration file')
         return parser.parse_args()
 
     def get_start_date(self, data_needed):
@@ -109,7 +117,24 @@ class MintCheck:
 def main():
     mint_check = MintCheck()
     logger = mint_check.logger
-    mint_check.collect_and_send()
+    log_file = mint_check.config.log_file
+    admin_email = mint_check.config.general_admin_email
+    email_connection = mint_check.config.email_connection
+
+    try:
+        mint_check.collect_and_send()
+    except Exception as (e):
+        type_, value_, traceback_ = sys.exc_info()
+        message = "<html>"
+        tb = traceback.format_exception(type_, value_, traceback_)
+        for line in tb:
+            message += line + "<br>"
+        message += "\n Log information:\n"
+        with open(log_file, 'r') as f:
+            data = f.read().replace("\n", "<br>")
+        message += data
+        email_sender = EmailSender(email_connection, logger)
+        email_sender.send(admin_email, "Exception caught in MintCheck", message)
     logger.debug("Done!")
 
 if __name__ == "__main__":
