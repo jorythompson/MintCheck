@@ -19,13 +19,11 @@ import time
 
 
 class MintCheck:
-    PICKLE_FILE = "\\\\andraia\\jordan\\pythonDevelopment\\mintToEvernote\\MintCheck\\pickle.txt"
-
     def __init__(self):
         self.args = None
         self.accounts = None
         self.mint_transactions = None
-        self.args = MintCheck.get_args()
+        self.args = MintCheck._get_args()
         self.config = MintConfigFile(self.args.config, test_email=self.args.validate_emails,
                                      validate=self.args.validate_ini)
         self.logger = self.config.logger
@@ -37,25 +35,28 @@ class MintCheck:
 
     def _get_data(self, start_date):
         self.logger.debug("getting data...")
-        if self.config.general_dev_only:
+        if not self.config.debug_download:
             self.logger.debug("unpicking...")
             self.unpickle()
         else:
             self.logger.debug("Connecting to Mint...")
             mint = mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
                                 ius_session=self.config.mint_cookie)
-            self.logger.debug(("Getting transactions..."))
-            self.mint_transactions = mintObjects.MintTransactions(
-                mint.get_transactions_json(include_investment=False, skip_duplicates=False,
-                                           start_date=start_date.strftime('%m/%d/%y')))
             self.logger.debug("getting accounts...")
-            self.accounts = mintObjects.MintAccounts(mint.get_accounts(get_detail=True))
+            self.accounts = mintObjects.MintAccounts(self.logger, mint.get_accounts(get_detail=True),
+                                                     self.config.debug_debugging)
+            self.logger.debug(("Getting transactions..."))
+            self.mint_transactions = mintObjects.MintTransactions(self.logger,
+                mint.get_transactions_json(include_investment=False, skip_duplicates=False,
+                                           start_date=start_date.strftime('%m/%d/%y')),
+                                                                  self.config.debug_debugging)
             self.logger.debug("pickling...")
             self.pickle()
 
     @staticmethod
-    def get_args():
+    def _get_args():
         parser = argparse.ArgumentParser(description='Read Information from Mint')
+        parser.add_argument('--sleep', action="store_true", default=False, help='Sleep a random period of time before hitting Mint.com')
         parser.add_argument('--config', required=True, help='Configuration file containing your username, password, and mint cookie')
         parser.add_argument('--validate_ini', action="store_true", default=False, help='Validates the input configuration file')
         parser.add_argument('--validate_emails',  action="store_true", default=False, help='Validates sending emails to all users in the configuration file')
@@ -75,15 +76,16 @@ class MintCheck:
         elif self.now.strftime("%A").lower() == self.config.general_week_start.lower() and \
                         "weekly" in data_needed:
             # Sunday: get last weeks
-            start_date = self.now + relativedelta(days=-7)
+            start_date = self.now + relativedelta(days=-8)
             frequency = ["daily", "weekly"]
         elif "daily" in data_needed:
-            start_date = self.now + relativedelta(days=-1)
+            start_date = self.now + relativedelta(days=-2)
             frequency = ["daily"]
         else:
             start_date = None
             frequency = None
-        self.logger.debug("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
+        if start_date is not None:
+            self.logger.debug("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
         return start_date, frequency
 
     def collect_and_send(self):
@@ -101,14 +103,14 @@ class MintCheck:
             report.send_data(frequency)
 
     def pickle(self):
-        with open(MintCheck.PICKLE_FILE, 'wb') as handle:
+        with open(self.config.debug_pickle_file, 'wb') as handle:
             # cPickle.dump(self.budgets, handle)
             cPickle.dump(self.accounts, handle)
             cPickle.dump(self.mint_transactions, handle)
             # cPickle.dump(self.net_worth, handle)
 
     def unpickle(self):
-        with open(MintCheck.PICKLE_FILE, 'rb') as handle:
+        with open(self.config.debug_pickle_file, 'rb') as handle:
             # self.budgets = cPickle.load(handle)
             self.accounts = cPickle.load(handle)
             self.mint_transactions = cPickle.load(handle)
@@ -117,15 +119,20 @@ class MintCheck:
 
 def main():
     mint_check = MintCheck()
-    logger = mint_check.logger
-    log_file = mint_check.config.log_file
-    admin_email = mint_check.config.general_admin_email
-    email_connection = mint_check.config.email_connection
 
     try:
+        if mint_check.args.sleep:
+            sleep_time = randint(0, 60 * 20)  # between 0 and 10 minutes
+            print "starting to sleep at:" + datetime.datetime.now().strftime('%H:%M:%S') + " for " + \
+                  datetime.datetime.fromtimestamp(sleep_time).strftime('%M:%S')
+            time.sleep(sleep_time)
+        logger = mint_check.logger
+        log_file = mint_check.config.log_file
+        email_connection = mint_check.config.email_connection
         mint_check.collect_and_send()
     except Exception as (e):
         type_, value_, traceback_ = sys.exc_info()
+        traceback.print_exc()
         message = "<html>"
         tb = traceback.format_exception(type_, value_, traceback_)
         for line in tb:
@@ -135,12 +142,9 @@ def main():
             data = f.read().replace("\n", "<br>")
         message += data
         email_sender = EmailSender(email_connection, logger)
-        email_sender.send(admin_email, "Exception caught in MintCheck", message)
+        for email_to in mint_check.config.debug_emails_to:
+            email_sender.send(email_to, "Exception caught in MintCheck", message)
     logger.debug("Done!")
 
 if __name__ == "__main__":
-    sleep_time = randint(0, 60*20) # between 0 and 10 minutes
-    print "starting to sleep at:" + datetime.datetime.now().strftime('%H:%M:%S') + " for " +\
-          datetime.datetime.fromtimestamp(sleep_time).strftime('%M:%S')
-    time.sleep(sleep_time)
     main()

@@ -19,7 +19,6 @@ MINT_WARNING_KEYWORDS = "warning_keywords"
 # general block
 GENERAL_TITLE = "General"
 GENERAL_WEEK_START = "week_start"
-GENERAL_DEV_ONLY = "dev_only"
 GENERAL_LOG_LEVEL = "log_level"
 GENERAL_LOG_FILE = "log_file"
 GENERAL_LOG_CONSOLE = "log_console"
@@ -30,7 +29,8 @@ USER_EMAIL = "email"
 USER_SUBJECT = "subject"
 USER_ACTIVE_ACCOUNTS = "active_accounts"
 USER_ACCOUNT_TOTALS = "account_totals"
-USER_FREQUENCY = "frequency" # daily, weekly, monthly
+ALLOWED_USER_FREQUENCIES = ["daily", "weekly", "monthly"]
+USER_FREQUENCY = "frequency"
 USER_RENAME_ACCOUNT = "rename_account"
 USER_RENAME_INSTITUTION = "rename_institution"
 
@@ -38,7 +38,13 @@ LOCALE_TITLE = "locale"
 DEBIAN_LOCALE = "debian"
 WINDOWS_LOCALE = "windows"
 
-SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE]
+DEBUG_TITLE = "debug"
+DEBUG_DOWNLOAD = "download"
+DEBUG_PICKLE_FILE = "pickle_file"
+DEBUG_EMAILS_TO = "emails_to"
+DEBUG_DEBUGGING = "debugging"
+
+SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, DEBUG_TITLE]
 
 
 class MintUser:
@@ -52,6 +58,11 @@ class MintUser:
             self.subject = "Hello from Mint!"
         try:
             self.frequency = ast.literal_eval("[" + config.get(name, USER_FREQUENCY) + "]")
+            for freq in self.frequency:
+                if freq not in ALLOWED_USER_FREQUENCIES:
+                    config.logger.warn("only values in " + str(ALLOWED_USER_FREQUENCIES) + " are permitted for " +
+                                       USER_FREQUENCY)
+                    raise Exception("invalid user frequency")
         except Exception:
             self.frequency = "weekly"
         try:
@@ -107,7 +118,7 @@ class MintConfigFile:
             print MINT_COOKIE + " must be set under " + MINT_TITLE
             sys.exit()
         self.mint_remove_duplicates = config.get(MINT_TITLE, MINT_REMOVE_DUPLICATES)
-        self.mint_warning_keywords = ast.literal_eval("[" + config.get(MINT_TITLE, MINT_WARNING_KEYWORDS) + "]")
+        self.mint_warning_keywords = map(str.lower, ast.literal_eval("[" + config.get(MINT_TITLE, MINT_WARNING_KEYWORDS) + "]"))
         self.general_week_start = config.get(GENERAL_TITLE, GENERAL_WEEK_START)
         self.logger = logging.getLogger("mintConfig")
         try:
@@ -130,9 +141,21 @@ class MintConfigFile:
         except Exception:
             level = logging.WARN
         try:
-            self.general_dev_only = config.getboolean(GENERAL_TITLE, GENERAL_DEV_ONLY)
+            self.debug_download = config.getboolean(DEBUG_TITLE, DEBUG_DOWNLOAD)
         except Exception:
-            self.general_week_dev_only = False
+            self.debug_download = False
+        try:
+            self.debug_pickle_file = config.get(DEBUG_TITLE, DEBUG_PICKLE_FILE)
+        except Exception:
+            self.debug_pickle_file = None
+        try:
+            self.debug_debugging = config.getboolean(DEBUG_TITLE, DEBUG_DEBUGGING)
+        except Exception:
+            self.debug_debugging = False
+        try:
+            self.debug_emails_to =  ast.literal_eval("[" + config.get(DEBUG_TITLE, DEBUG_EMAILS_TO) + "]")
+        except Exception:
+            self.debug_emails_to = [self.general_admin_email]
         try:
             log_console = config.getboolean(GENERAL_TITLE, GENERAL_LOG_CONSOLE)
         except Exception:
@@ -163,9 +186,9 @@ class MintConfigFile:
             dump_config_value(MINT_WARNING_KEYWORDS, self.mint_warning_keywords)
             dump_config_value(GENERAL_TITLE)
             dump_config_value(GENERAL_WEEK_START, self.general_week_start)
-            dump_config_value(GENERAL_DEV_ONLY, self.general_dev_only)
+            dump_config_value(DEBUG_DOWNLOAD, self.debug_download)
             dump_config_value(GENERAL_LOG_LEVEL, level)
-            dump_config_value(GENERAL_LOG_FILE, log_file)
+            dump_config_value(GENERAL_LOG_FILE, self.log_file)
             dump_config_value(GENERAL_LOG_CONSOLE, log_console)
             dump_config_value(LOCALE_TITLE)
             dump_config_value(platform.system(), locale_val)
