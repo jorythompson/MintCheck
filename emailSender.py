@@ -28,11 +28,13 @@ class EmailSender:
         self.email_connection = email_connection
         self.logger = logger
 
-    def send(self, to_email, subject, message):
+    def send(self, to_email, subject, message, cc=None):
         self.logger.debug("starting to send email to " + to_email)
         msg = MIMEMultipart()
         msg['From'] = self.email_connection.from_user
         msg['To'] = to_email
+        if cc is not None:
+            msg['Cc'] = cc
         msg['Subject'] = subject
         msg.attach(MIMEText(message, "html"))
 

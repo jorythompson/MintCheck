@@ -122,9 +122,13 @@ def main():
 
     try:
         if mint_check.args.sleep:
-            sleep_time = randint(0, 60 * 20)  # between 0 and 10 minutes
-            print "starting to sleep at:" + datetime.datetime.now().strftime('%H:%M:%S') + " for " + \
-                  datetime.datetime.fromtimestamp(sleep_time).strftime('%M:%S')
+            sleep_time = randint(0, 60 * mint_check.config.general_sleep)
+            mint_check.logger.debug("starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') +
+                                    " for " +
+                                    datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds') +
+                                    " waking at " +
+                                    (datetime.datetime.now() +
+                                     datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
             time.sleep(sleep_time)
         logger = mint_check.logger
         mint_check.collect_and_send()
@@ -139,10 +143,14 @@ def main():
         with open(mint_check.config.general_log_file, 'r') as f:
             data = f.read().replace("\n", "<br>")
         message += data
-        email_sender = EmailSender(mint_check.config.email_connection, logger)
-        for email_to in mint_check.config.debug_emails_to:
-            email_sender.send(email_to, "Exception caught in MintCheck", message)
-    logger.debug("Done!")
+        email_sender = EmailSender(mint_check.config.email_connection, mint_check.logger)
+        for email_to in mint_check.config.general_exceptions_to:
+            if mint_check.config.debug_copy_admin:
+                cc = mint_check.config.general_admin_email
+            else:
+                cc = None
+            email_sender.send(email_to, "Exception caught in MintCheck", message, cc)
+    mint_check.logger.debug("Done!")
 
 if __name__ == "__main__":
     main()

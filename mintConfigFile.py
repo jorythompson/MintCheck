@@ -24,6 +24,8 @@ GENERAL_LOG_FILE = "log_file"
 GENERAL_LOG_CONSOLE = "log_console"
 GENERAL_ADMIN_EMAIL = "admin_email"
 GENERAL_USERS = "users"
+GENERAL_MAX_SLEEP = "max_sleep"
+GENERAL_EXCEPTIONS_TO = "exceptions_to"
 
 # USER block
 USER_EMAIL = "email"
@@ -42,8 +44,8 @@ WINDOWS_LOCALE = "windows"
 DEBUG_TITLE = "debug"
 DEBUG_DOWNLOAD = "download"
 DEBUG_PICKLE_FILE = "pickle_file"
-DEBUG_EMAILS_TO = "emails_to"
 DEBUG_DEBUGGING = "debugging"
+DEBUG_COPY_ADMIN = "copy_admin"
 
 SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, DEBUG_TITLE]
 
@@ -103,6 +105,8 @@ class MintConfigFile:
     def __init__(self, config_file, validate=False, test_email=False):
         config = ConfigParser.ConfigParser()
         config.read(config_file)
+
+        # MINT section
         try:
             self.mint_username = config.get(MINT_TITLE, MINT_USER_USERNAME)
         except Exception:
@@ -122,12 +126,16 @@ class MintConfigFile:
         self.mint_warning_keywords = map(str.lower, ast.literal_eval("[" + config.get(MINT_TITLE, MINT_WARNING_KEYWORDS) + "]"))
         self.general_week_start = config.get(GENERAL_TITLE, GENERAL_WEEK_START)
         self.logger = logging.getLogger("mintConfig")
+
+        # LOCALE section
         try:
             locale_val = config.get(LOCALE_TITLE, platform.system())
             locale.setlocale(locale.LC_ALL, locale_val)
         except Exception:
             print "\"" + platform.system() + "\" must be set under [" + LOCALE_TITLE + "] in the configuration settings"
             sys.exit()
+
+        # GENERAL section
         try:
             self.general_admin_email = config.get(GENERAL_TITLE, GENERAL_ADMIN_EMAIL)
         except Exception:
@@ -146,9 +154,19 @@ class MintConfigFile:
         except Exception:
             level = logging.WARN
         try:
+            self.general_sleep = int(config.get(GENERAL_TITLE, GENERAL_MAX_SLEEP))
+        except Exception:
+            self.general_sleep = 10
+        try:
             self.general_log_file = config.get(GENERAL_TITLE, GENERAL_LOG_FILE)
         except Exception:
             self.general_log_file = "MintCheck.log"
+        try:
+            log_console = config.getboolean(GENERAL_TITLE, GENERAL_LOG_CONSOLE)
+        except Exception:
+            log_console = False
+
+        # DEBUG section
         try:
             self.debug_download = config.getboolean(DEBUG_TITLE, DEBUG_DOWNLOAD)
         except Exception:
@@ -162,13 +180,14 @@ class MintConfigFile:
         except Exception:
             self.debug_debugging = False
         try:
-            self.debug_emails_to =  ast.literal_eval("[" + config.get(DEBUG_TITLE, DEBUG_EMAILS_TO) + "]")
+            self.general_exceptions_to =  ast.literal_eval("[" + config.get(GENERAL_TITLE, GENERAL_EXCEPTIONS_TO) + "]")
         except Exception:
-            self.debug_emails_to = [self.general_admin_email]
+            self.general_exceptions_to = [self.general_admin_email]
         try:
-            log_console = config.getboolean(GENERAL_TITLE, GENERAL_LOG_CONSOLE)
+            self.debug_copy_admin = config.getboolean(DEBUG_TITLE, DEBUG_COPY_ADMIN)
         except Exception:
-            log_console = False
+            self.debug_copy_admin = False
+
         self.logger.setLevel(level)
         file_handler = logging.handlers.RotatingFileHandler(self.general_log_file, mode='a', maxBytes=10000, backupCount=5)
         file_handler.setLevel(level)
@@ -176,9 +195,9 @@ class MintConfigFile:
         file_handler.setFormatter(formatter)
         self.logger.addHandler(file_handler)
         if log_console:
-            consoleHandler = logging.StreamHandler()
-            consoleHandler.setFormatter(formatter)
-            self.logger.addHandler(consoleHandler)
+            console_handler = logging.StreamHandler()
+            console_handler.setFormatter(formatter)
+            self.logger.addHandler(console_handler)
         self.logger.debug("Starting session")
         self.email_connection = EmailConnection(config)
         self.users = []

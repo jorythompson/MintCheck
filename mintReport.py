@@ -80,7 +80,7 @@ class PrettyPrint:
                                                                   " due"
                                     account_message += next_payment_amount + " and is due on" + next_payment_date
                                 else:
-                                    account_message = account_type.strip()
+                                    account_message += account_type.strip()
                                 if not fis_title_saved:
                                     try:
                                         f = user.rename_institutions[fi]
@@ -254,4 +254,8 @@ class PrettyPrint:
                 email_sender = EmailSender(self.config.email_connection, self.logger)
                 for email in user.email:
                     self.logger.debug("Sending email to " + email)
-                    email_sender.send(email, user.subject,message)
+                    if self.config.debug_copy_admin:
+                        cc = self.config.general_admin_email
+                    else:
+                        cc = None
+                    email_sender.send(email, user.subject, message, cc)
