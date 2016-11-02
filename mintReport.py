@@ -23,6 +23,9 @@ class PrettyPrint:
         self.logger.debug("starting send_data")
         user_accounts = {}
         for user in self.config.users:
+            handled_accounts = []
+            if user.name not in self.config.general_users and "all" not in self.config.general_users:
+                continue
             self.logger.debug("handling user:" + user.name)
             start_date = None
             report_frequency = None
@@ -35,7 +38,6 @@ class PrettyPrint:
             elif "daily" in user.frequency and "daily" in frequency:
                 start_date = self.now + relativedelta(days=-2)
                 report_frequency = "daily"
-            activity_html = ""
             if start_date is not None:
                 bad_transactions = []
                 transactions = []
@@ -48,6 +50,9 @@ class PrettyPrint:
                         for account_name in account_names:
                             account_name = str(account_name)
                             if account_name in user.active_accounts or "all" in user.active_accounts:
+                                if account_name in handled_accounts:
+                                    continue
+                                handled_accounts.append(account_name)
                                 mint_account = self.accounts.get_account(account_name)
                                 user_accounts[user] = mint_account
                                 account_type = str(mint_account["accountType"])
@@ -174,7 +179,7 @@ class PrettyPrint:
                 self.logger.debug("assembling account lists")
                 for account in self.accounts.accounts:
                     for account_name in user.account_totals:
-                        if account_name == "all" or account_name == account["name"]:
+                        if account_name == "all" or account_name == account["name"] and account not in accounts:
                             accounts.append(account)
                 accounts_html = ""
                 if len(accounts) > 0:
@@ -190,8 +195,11 @@ class PrettyPrint:
                                 tags.th("Amount", style=BORDER_STYLE)
                                 tags.tr()
                             total = 0
+                            handled_accounts = []
                             for account in accounts:
-                                if account["currentBalance"] > 0 and not account["isClosed"]:
+                                if account["currentBalance"] > 0 and not account["isClosed"] \
+                                        and not account["name"] in handled_accounts:
+                                    handled_accounts.append(account["name"])
                                     color_style = ""
                                     if account["accountType"] == "credit":
                                         color_style = ";background-color:" + CREDIT_CARD_COLOR

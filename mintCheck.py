@@ -47,7 +47,7 @@ class MintCheck:
                                                      self.config.debug_debugging)
             self.logger.debug(("Getting transactions..."))
             self.mint_transactions = mintObjects.MintTransactions(self.logger,
-                mint.get_transactions_json(include_investment=False, skip_duplicates=False,
+                mint.get_transactions_json(include_investment=False, skip_duplicates=self.config.mint_remove_duplicates,
                                            start_date=start_date.strftime('%m/%d/%y')),
                                                                   self.config.debug_debugging)
             self.logger.debug("pickling...")
@@ -127,8 +127,6 @@ def main():
                   datetime.datetime.fromtimestamp(sleep_time).strftime('%M:%S')
             time.sleep(sleep_time)
         logger = mint_check.logger
-        log_file = mint_check.config.log_file
-        email_connection = mint_check.config.email_connection
         mint_check.collect_and_send()
     except Exception as (e):
         type_, value_, traceback_ = sys.exc_info()
@@ -138,10 +136,10 @@ def main():
         for line in tb:
             message += line + "<br>"
         message += "\n Log information:\n"
-        with open(log_file, 'r') as f:
+        with open(mint_check.config.general_log_file, 'r') as f:
             data = f.read().replace("\n", "<br>")
         message += data
-        email_sender = EmailSender(email_connection, logger)
+        email_sender = EmailSender(mint_check.config.email_connection, logger)
         for email_to in mint_check.config.debug_emails_to:
             email_sender.send(email_to, "Exception caught in MintCheck", message)
     logger.debug("Done!")

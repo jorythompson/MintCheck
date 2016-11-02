@@ -23,6 +23,7 @@ GENERAL_LOG_LEVEL = "log_level"
 GENERAL_LOG_FILE = "log_file"
 GENERAL_LOG_CONSOLE = "log_console"
 GENERAL_ADMIN_EMAIL = "admin_email"
+GENERAL_USERS = "users"
 
 # USER block
 USER_EMAIL = "email"
@@ -133,13 +134,21 @@ class MintConfigFile:
             print GENERAL_ADMIN_EMAIL + " must be set under " + GENERAL_TITLE
             sys.exit()
         try:
-            self.log_file = config.get(GENERAL_TITLE, GENERAL_LOG_FILE)
+            self.general_users = ast.literal_eval("[" + config.get(GENERAL_TITLE, GENERAL_USERS) + "]")
         except Exception:
-            self.log_file = "log.txt"
+            self.general_users = ["all"]
         try:
             level = config.get(GENERAL_TITLE, GENERAL_LOG_LEVEL)
         except Exception:
             level = logging.WARN
+        try:
+            level = config.get(GENERAL_TITLE, GENERAL_LOG_LEVEL)
+        except Exception:
+            level = logging.WARN
+        try:
+            self.general_log_file = config.get(GENERAL_TITLE, GENERAL_LOG_FILE)
+        except Exception:
+            self.general_log_file = "MintCheck.log"
         try:
             self.debug_download = config.getboolean(DEBUG_TITLE, DEBUG_DOWNLOAD)
         except Exception:
@@ -161,7 +170,7 @@ class MintConfigFile:
         except Exception:
             log_console = False
         self.logger.setLevel(level)
-        file_handler = logging.handlers.RotatingFileHandler(self.log_file, mode='a', maxBytes=10000, backupCount=5)
+        file_handler = logging.handlers.RotatingFileHandler(self.general_log_file, mode='a', maxBytes=10000, backupCount=5)
         file_handler.setLevel(level)
         formatter = logging.Formatter('%(asctime)s:%(levelname)s: %(message)s')
         file_handler.setFormatter(formatter)
