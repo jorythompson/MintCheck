@@ -35,7 +35,8 @@ MONTH_ONLY_DATE_FIELDS = [
 DOLLAR_FIELDS = [
     "amount",
     "value",
-    "dueAmt"
+    "dueAmt",
+    "currentBalance"
 ]
 
 

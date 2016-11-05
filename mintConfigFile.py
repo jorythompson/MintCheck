@@ -14,7 +14,6 @@ MINT_USER_USERNAME = "username"
 MINT_USER_PASSWORD = "password"
 MINT_COOKIE = "ius_cookie"
 MINT_REMOVE_DUPLICATES ="remove_duplicates"
-MINT_WARNING_KEYWORDS = "warning_keywords"
 
 # general block
 GENERAL_TITLE = "General"
@@ -47,7 +46,12 @@ DEBUG_PICKLE_FILE = "pickle_file"
 DEBUG_DEBUGGING = "debugging"
 DEBUG_COPY_ADMIN = "copy_admin"
 
-SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, DEBUG_TITLE]
+COLORS_TITLE = "colors"
+ACCOUNT_TYPES_TITLE = "account_types"
+ACCOUNT_TYPES_BANK = "bank"
+ACCOUNT_TYPES_CREDIT = "credit"
+
+SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, DEBUG_TITLE, COLORS_TITLE, ACCOUNT_TYPES_TITLE]
 
 
 class MintUser:
@@ -123,14 +127,17 @@ class MintConfigFile:
             print MINT_COOKIE + " must be set under " + MINT_TITLE
             sys.exit()
         self.mint_remove_duplicates = config.get(MINT_TITLE, MINT_REMOVE_DUPLICATES)
-        self.mint_warning_keywords = map(str.lower, ast.literal_eval("[" + config.get(MINT_TITLE, MINT_WARNING_KEYWORDS) + "]"))
+        colors = config.items(COLORS_TITLE)
+        self.color_tags = {}
+        for color in colors:
+            self.color_tags[color[0]] = ast.literal_eval("[" + color[1] + "]")
         self.general_week_start = config.get(GENERAL_TITLE, GENERAL_WEEK_START)
         self.logger = logging.getLogger("mintConfig")
 
         # LOCALE section
         try:
-            locale_val = config.get(LOCALE_TITLE, platform.system())
-            locale.setlocale(locale.LC_ALL, locale_val)
+            self.locale_val = config.get(LOCALE_TITLE, platform.system())
+            locale.setlocale(locale.LC_ALL, self.locale_val)
         except Exception:
             print "\"" + platform.system() + "\" must be set under [" + LOCALE_TITLE + "] in the configuration settings"
             sys.exit()
@@ -187,6 +194,14 @@ class MintConfigFile:
             self.debug_copy_admin = config.getboolean(DEBUG_TITLE, DEBUG_COPY_ADMIN)
         except Exception:
             self.debug_copy_admin = False
+        try:
+            self.account_type_credit = config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT)
+        except Exception:
+            self.account_type_credit = "black"
+        try:
+            self.account_type_bank = config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK)
+        except Exception:
+            self.account_type_bank = "black"
 
         self.logger.setLevel(level)
         file_handler = logging.handlers.RotatingFileHandler(self.general_log_file, mode='a', maxBytes=10000, backupCount=5)
@@ -206,20 +221,40 @@ class MintConfigFile:
                 self.users.append(MintUser(user, config))
 
         if validate or test_email:
+            # mint connection block
             dump_config_value(MINT_TITLE)
             dump_config_value(MINT_USER_USERNAME,self.mint_username)
             dump_config_value(MINT_USER_PASSWORD, self.mint_password)
             dump_config_value(MINT_COOKIE, self.mint_cookie)
             dump_config_value(MINT_REMOVE_DUPLICATES, self.mint_remove_duplicates)
-            dump_config_value(MINT_WARNING_KEYWORDS, self.mint_warning_keywords)
+
+            # general block
             dump_config_value(GENERAL_TITLE)
             dump_config_value(GENERAL_WEEK_START, self.general_week_start)
-            dump_config_value(DEBUG_DOWNLOAD, self.debug_download)
             dump_config_value(GENERAL_LOG_LEVEL, level)
-            dump_config_value(GENERAL_LOG_FILE, self.log_file)
-            dump_config_value(GENERAL_LOG_CONSOLE, log_console)
+            dump_config_value(GENERAL_LOG_FILE, self.general_log_file)
+            dump_config_value(GENERAL_ADMIN_EMAIL, self.general_admin_email)
+            dump_config_value(GENERAL_USERS, self.general_users)
+            dump_config_value(GENERAL_MAX_SLEEP, self.general_sleep)
+            dump_config_value(GENERAL_EXCEPTIONS_TO, self.general_exceptions_to)
+
+            # debug block
+            dump_config_value(DEBUG_TITLE)
+            dump_config_value(DEBUG_DOWNLOAD, self.debug_download)
+            dump_config_value(DEBUG_PICKLE_FILE, self.debug_pickle_file)
+            dump_config_value(DEBUG_DEBUGGING, self.debug_debugging)
+            dump_config_value(DEBUG_COPY_ADMIN, self.debug_copy_admin)
+
+            # colors block
+            dump_config_value(COLORS_TITLE)
+            for color in self.color_tags:
+                dump_config_value(str(color), str(self.color_tags[color]))
+
+            # locale block
             dump_config_value(LOCALE_TITLE)
-            dump_config_value(platform.system(), locale_val)
+            dump_config_value(platform.system(), self.locale_val)
+
+            # USER block
             dump_config_value(EmailConnection.TITLE)
             dump_config_value(EmailConnection.USERNAME, self.email_connection.username)
             dump_config_value(EmailConnection.PASSWORD, self.email_connection.password)
@@ -234,5 +269,5 @@ class MintConfigFile:
             sys.exit()
 
 if __name__ == "__main__":
-    mint_config = MintConfigFile("home.ini", validate=True, test_email=True)
+    mint_config = MintConfigFile("home.ini", validate=True, test_email=False)
     mint_config.logger.info("Done")

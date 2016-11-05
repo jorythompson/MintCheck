@@ -42,6 +42,8 @@ class MintCheck:
             self.logger.debug("Connecting to Mint...")
             mint = mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
                                 ius_session=self.config.mint_cookie)
+            self.logger.debug("Refreshing Mint")
+            # mintapi.initiate_account_refresh()
             self.logger.debug("getting accounts...")
             self.accounts = mintObjects.MintAccounts(self.logger, mint.get_accounts(get_detail=True),
                                                      self.config.debug_debugging)
