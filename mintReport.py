@@ -2,6 +2,7 @@ import dominate.tags as tags
 from emailSender import EmailSender
 from dateutil.relativedelta import relativedelta
 import locale
+import datetime
 
 BORDER_STYLE = "border-bottom:1px solid black"
 
@@ -19,6 +20,7 @@ class PrettyPrint:
     def send_data(self, frequency):
         self.logger.debug("starting send_data")
         user_accounts = {}
+        now = datetime.datetime.now()
         for user in self.config.users:
             handled_accounts = []
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
@@ -55,12 +57,20 @@ class PrettyPrint:
                                 account_type = str(mint_account["accountType"]).lower()
                                 account_message = "This"
                                 if "bank" in account_type:
-                                    account_color = self.config.account_type_bank
+                                    fg_color = self.config.account_type_bank_fg
+                                    bg_color = self.config.account_type_bank_bg
                                     account_message += " is a bank account"
                                 elif "credit" in account_type:
                                     account_message += " credit card"
-                                    account_color = self.config.account_type_credit
+                                    due_now = mint_account["dueDate"]
                                     next_payment_amount = mint_account["dueAmt"]
+                                    trigger_date = now + datetime.timedelta(days=-self.config.past_due_days_before)
+                                    if due_now is not None and due_now <= trigger_date and next_payment_amount > 0:
+                                        fg_color = self.config.past_due_fg_color
+                                        bg_color = self.config.past_due_bg_color
+                                    else:
+                                        fg_color = self.config.account_type_credit_fg
+                                        bg_color = self.config.account_type_credit_bg
                                     next_payment_date = mint_account["dueDate"]
                                     if next_payment_date is None:
                                         next_payment_date = " on undetermined date"
@@ -83,7 +93,8 @@ class PrettyPrint:
                                         f = user.rename_institutions[fi]
                                     except KeyError:
                                         f = fi
-                                    tags.h1(f, style="color:" + account_color)
+                                    tags.h1(f, style="color:" + fg_color + ";" + "background-color:" + bg_color
+                                                     + ";text-align:center")
                                     fis_title_saved = True
                                 try:
                                     acc = user.rename_accounts[account_name]
@@ -93,7 +104,8 @@ class PrettyPrint:
                                 tags.h2(acc + " has a balance of " +
                                         locale.currency(mint_account["value"], grouping=True) +
                                         ".  Total transactions for this report is " +
-                                        locale.currency(total, grouping=True) + ".", style="color:" + account_color)
+                                        locale.currency(total, grouping=True) + ".",
+                                        style="color:" + fg_color + ";" + "background-color:" + bg_color)
                                 with tags.table(rules="cols", frame="box"):
                                     with tags.thead(style=BORDER_STYLE):
                                         tags.th("Date")
@@ -112,13 +124,14 @@ class PrettyPrint:
                                                         or word in transaction["mmerchant"] \
                                                         or word in transaction["omerchant"]:
                                                     fg_color = color
-                                                    bad_transactions.append([transaction, fg_color])
+                                                    bad_transactions.append([transaction, fg_color, bg_color])
                                                     break
                                             else:
                                                 continue
                                             break
                                         with tags.tbody():
-                                            with tags.tr(style="color:" + fg_color):
+                                            with tags.tr(style="color:" + fg_color +
+                                                    ";" + "background-color:" + bg_color):
                                                 tags.td(transaction["date"].strftime('%b %d'))
                                                 tags.td(transaction["omerchant"])
                                                 amount = transaction["amount"]
@@ -135,7 +148,7 @@ class PrettyPrint:
                     self.logger.debug("assembling bad transactions")
                     fees_html = tags.html()
                     with fees_html.add(tags.body()).add(tags.div(id='content')):
-                        tags.h1("Flagged Transactions")
+                        tags.h1("Flagged Transactions", align="center")
                         with tags.table(rules="cols", frame="box"):
                             with tags.thead(style=BORDER_STYLE):
                                 tags.th("Date")
@@ -182,8 +195,8 @@ class PrettyPrint:
                 if len(accounts) > 0:
                     accounts_html = tags.html()
                     with accounts_html.add(tags.body()).add(tags.div(id='content')):
-                        tags.h1("Current Balances in Accounts")
-                        tags.h2("Credit cards are highlighted", style="color:" + self.config.account_type_credit)
+                        tags.h1("Current Balances in Accounts", align="center")
+                        tags.h2("Credit cards are highlighted", style="color:" + self.config.account_type_credit_fg)
                         with tags.table(rules="cols", frame="box"):
                             with tags.thead(style=BORDER_STYLE):
                                 tags.th("Financial Institution")
@@ -201,9 +214,10 @@ class PrettyPrint:
                                     color_style = ""
                                     account_type = account["accountType"].lower()
                                     if "bank" in account_type:
-                                        color_style = ";color:" + self.config.account_type_bank
+                                        color_style = ";color:" + self.config.account_type_bank_fg + ";" + "background-color:" + bg_color
                                     if "credit" in account_type:
-                                        color_style = ";color:" + self.config.account_type_credit
+                                        color_style = ";color:" + self.config.account_type_credit_fg \
+                                                      + ";" + "background-color:" + bg_color
                                 with tags.tbody():
                                         with tags.tr(style=BORDER_STYLE + color_style):
                                             tags.td(account["fiName"])
@@ -246,10 +260,12 @@ class PrettyPrint:
                 with report_period_html.add(tags.body()).add(tags.div(id='content')):
                     tags.h4("This " + report_frequency + " report was prepared for " + user.name + " starting on " + \
                             start_date.strftime('%m/%d/%y'))
+                        # tags.h1("this is some text", style="color:red").h1("more text", style="color:green")
                         # .add("font color=" + BANK_COLOR).add("Banks are this color")\
                         # .add(fg_color=CREDIT_CARD_COLOR).add("Credit Cards are this color")
-
                 message = str(report_period_html) + message
+                with open("mailing.html", "w") as out_html:
+                    out_html.write(message)
                 email_sender = EmailSender(self.config.email_connection, self.logger)
                 for email in user.email:
                     self.logger.debug("Sending email to " + email)

@@ -48,10 +48,18 @@ DEBUG_COPY_ADMIN = "copy_admin"
 
 COLORS_TITLE = "colors"
 ACCOUNT_TYPES_TITLE = "account_types"
-ACCOUNT_TYPES_BANK = "bank"
-ACCOUNT_TYPES_CREDIT = "credit"
+ACCOUNT_TYPES_BANK_FG = "bank_fg_color"
+ACCOUNT_TYPES_BANK_BG = "bank_bg_color"
+ACCOUNT_TYPES_CREDIT_FG = "credit_fg_color"
+ACCOUNT_TYPES_CREDIT_BG = "credit_bg_color"
 
-SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, DEBUG_TITLE, COLORS_TITLE, ACCOUNT_TYPES_TITLE]
+PAST_DUE_TITLE = "past_due"
+PAST_DUE_DAYS_BEFORE = "days_before"
+PAST_DUE_FOREGROUND_COLOR = "fg_color"
+PAST_DUE_BACKGROUND_COLOR = "bg_color"
+
+SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, DEBUG_TITLE, COLORS_TITLE,
+               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE]
 
 
 class MintUser:
@@ -195,13 +203,34 @@ class MintConfigFile:
         except Exception:
             self.debug_copy_admin = False
         try:
-            self.account_type_credit = config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT)
+            self.account_type_credit_fg = config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT_FG)
         except Exception:
-            self.account_type_credit = "black"
+            self.account_type_credit_fg = "black"
         try:
-            self.account_type_bank = config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK)
+            self.account_type_credit_bg = config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT_BG)
         except Exception:
-            self.account_type_bank = "black"
+            self.account_type_credit_bg = "white"
+        try:
+            self.account_type_bank_fg = config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_FG)
+        except Exception:
+            self.account_type_bank_fg = "black"
+        try:
+            self.account_type_bank_bg = config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_BG)
+        except Exception:
+            self.account_type_bank_bg = "white"
+
+        try:
+            self.past_due_days_before = config.getint(PAST_DUE_TITLE, PAST_DUE_DAYS_BEFORE)
+        except Exception:
+            self.past_due_days_before = 0
+        try:
+            self.past_due_fg_color = config.get(PAST_DUE_TITLE, PAST_DUE_FOREGROUND_COLOR)
+        except Exception:
+            self.past_due_fg_color = "red"
+        try:
+            self.past_due_bg_color = config.get(PAST_DUE_TITLE, PAST_DUE_BACKGROUND_COLOR)
+        except Exception:
+            self.past_due_bg_color = "white"
 
         self.logger.setLevel(level)
         file_handler = logging.handlers.RotatingFileHandler(self.general_log_file, mode='a', maxBytes=10000, backupCount=5)
@@ -233,10 +262,29 @@ class MintConfigFile:
             dump_config_value(GENERAL_WEEK_START, self.general_week_start)
             dump_config_value(GENERAL_LOG_LEVEL, level)
             dump_config_value(GENERAL_LOG_FILE, self.general_log_file)
+            dump_config_value(GENERAL_LOG_CONSOLE, log_console)
             dump_config_value(GENERAL_ADMIN_EMAIL, self.general_admin_email)
             dump_config_value(GENERAL_USERS, self.general_users)
             dump_config_value(GENERAL_MAX_SLEEP, self.general_sleep)
             dump_config_value(GENERAL_EXCEPTIONS_TO, self.general_exceptions_to)
+
+            # colors block
+            dump_config_value(COLORS_TITLE)
+            for color in self.color_tags:
+                dump_config_value(str(color), str(self.color_tags[color]))
+
+            # account_types block
+            dump_config_value(ACCOUNT_TYPES_TITLE)
+            dump_config_value(ACCOUNT_TYPES_BANK_FG, self.account_type_bank_fg)
+            dump_config_value(ACCOUNT_TYPES_BANK_BG, self.account_type_bank_bg)
+            dump_config_value(ACCOUNT_TYPES_CREDIT_FG, self.account_type_credit_fg)
+            dump_config_value(ACCOUNT_TYPES_CREDIT_BG, self.account_type_credit_bg)
+
+            # past_due block
+            dump_config_value(PAST_DUE_TITLE)
+            dump_config_value(PAST_DUE_DAYS_BEFORE, self.past_due_days_before)
+            dump_config_value(PAST_DUE_FOREGROUND_COLOR, self.past_due_fg_color)
+            dump_config_value(PAST_DUE_BACKGROUND_COLOR, self.past_due_bg_color)
 
             # debug block
             dump_config_value(DEBUG_TITLE)
@@ -245,21 +293,18 @@ class MintConfigFile:
             dump_config_value(DEBUG_DEBUGGING, self.debug_debugging)
             dump_config_value(DEBUG_COPY_ADMIN, self.debug_copy_admin)
 
-            # colors block
-            dump_config_value(COLORS_TITLE)
-            for color in self.color_tags:
-                dump_config_value(str(color), str(self.color_tags[color]))
-
             # locale block
             dump_config_value(LOCALE_TITLE)
             dump_config_value(platform.system(), self.locale_val)
 
-            # USER block
+            # email connection block
             dump_config_value(EmailConnection.TITLE)
             dump_config_value(EmailConnection.USERNAME, self.email_connection.username)
             dump_config_value(EmailConnection.PASSWORD, self.email_connection.password)
             dump_config_value(EmailConnection.FROM, self.email_connection.from_user)
             email_sender = EmailSender(self.email_connection, self.logger)
+
+            # user blocks
             for user in self.users:
                 user.dump()
                 if test_email:

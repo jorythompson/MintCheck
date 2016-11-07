@@ -1,8 +1,8 @@
 from datetime import date, datetime
 
 
-def clean_dictionary(name, obj, logger, debug=False):
-    if debug:
+def clean_dictionary(name, obj, logger=None):
+    if logger is not None:
         logger.debug(name + " before:")
         print logger.debug(str(obj))
     for transaction in obj:
@@ -11,7 +11,7 @@ def clean_dictionary(name, obj, logger, debug=False):
             transaction[clean_key] = transaction.pop(key)
             transaction[clean_key] = str(transaction[clean_key])
             transaction[clean_key] = parse_all(clean_key, transaction[clean_key])
-    if debug:
+    if logger is not None:
         logger.debug(name + " after:")
         logger.debug(str(obj))
     return obj
@@ -86,8 +86,14 @@ class MintTransactions:
     # __init__: constructor for a MintTransactions
     # obj:      string that describes a group of transactions
     ##############################################
-    def __init__(self, logger, obj, debug=False):
-        self.transactions = clean_dictionary("MintTransactions", obj, logger, debug)
+    def __init__(self, obj, logger):
+        self.transactions = clean_dictionary("MintTransactions", obj, logger)
+
+    def dump(self, logger):
+        for transaction in self.transactions:
+            logger.debug("Dumping Transaction")
+            for key in transaction:
+                logger.debug("\t\t" + key + ":" + str(transaction[key]))
 
     def get_financial_institutions(self, start_date):
         fis = []
@@ -141,11 +147,17 @@ class MintAccounts:
     # __init__: constructor for a MintAccounts
     # obj:      string that describes a group of accounts
     ##############################################
-    def __init__(self, logger, obj, debug=False):
-        self.accounts = clean_dictionary("MintAccounts", obj, logger, debug)
+    def __init__(self, obj, logger):
+        self.accounts = clean_dictionary("MintAccounts", obj, logger)
 
     def get_account(self, name):
         for account in self.accounts:
             if account["accountName"] == name:
                 return account
         return None
+
+    def dump(self, logger):
+        for account in self.accounts:
+            logger.debug("Dumping " + account["name"])
+            for key in account:
+                logger.debug("\t\t" + key + ":" + str(account[key]))

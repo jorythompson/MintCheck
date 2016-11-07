@@ -31,34 +31,55 @@ class MintCheck:
         # self.now = datetime.datetime.strptime('10/01/2016', '%m/%d/%Y') # first of month
         # self.now = datetime.datetime.strptime('10/27/2016', '%m/%d/%Y') # no activity for the last couple of days
         # self.now = datetime.datetime.strptime('10/02/2016', '%m/%d/%Y')  #
-        self.logger.debug("Today is " + self.now.strftime('%m/%d/%Y'))
+        self.logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
 
     def _get_data(self, start_date):
         self.logger.debug("getting data...")
         if not self.config.debug_download:
             self.logger.debug("unpicking...")
             self.unpickle()
+            if self.config.debug_debugging:
+                self.accounts.dump(self.logger)
+                self.mint_transactions.dump(self.logger)
         else:
             self.logger.debug("Connecting to Mint...")
             mint = mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
                                 ius_session=self.config.mint_cookie)
-            self.logger.debug("Refreshing Mint")
-            # mintapi.initiate_account_refresh()
+            if self.args.live:
+                self.logger.debug("Refreshing Mint")
+                mint.initiate_account_refresh()
+                sleep_time = 15*60 + randint(0, 10*60)  # sleep 15 minutes + some random time while mint refreshes
+                self.logger.debug("starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S')
+                                  + " for "
+                                  + datetime.datetime.fromtimestamp(sleep_time).strftime(
+                    '%M minutes and %S seconds')
+                                  + " waking at "
+                                  + (datetime.datetime.now() +
+                                     datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
+                time.sleep(sleep_time)
+                self.logger.debug("Reconnecting to Mint...")
+                mint = mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
+                                    ius_session=self.config.mint_cookie)
             self.logger.debug("getting accounts...")
-            self.accounts = mintObjects.MintAccounts(self.logger, mint.get_accounts(get_detail=True),
-                                                     self.config.debug_debugging)
+            if self.config.debug_debugging:
+                logger = self.logger
+            else:
+                logger = None
+            self.accounts = mintObjects.MintAccounts(mint.get_accounts(get_detail=True), logger)
             self.logger.debug(("Getting transactions..."))
-            self.mint_transactions = mintObjects.MintTransactions(self.logger,
+            self.mint_transactions = mintObjects.MintTransactions(
                 mint.get_transactions_json(include_investment=False, skip_duplicates=self.config.mint_remove_duplicates,
-                                           start_date=start_date.strftime('%m/%d/%y')),
-                                                                  self.config.debug_debugging)
+                                           start_date=start_date.strftime('%m/%d/%y')), logger)
             self.logger.debug("pickling...")
             self.pickle()
 
     @staticmethod
     def _get_args():
         parser = argparse.ArgumentParser(description='Read Information from Mint')
-        parser.add_argument('--sleep', action="store_true", default=False, help='Sleep a random period of time before hitting Mint.com')
+        parser.add_argument('--live', action="store_true", default=False,
+                            help='Indicates MintCheck is running live and should sleep a random period of time before '
+                                 'hitting Mint.com.  It also refreshes Mint and sleeps for 15 minutes while Mint '
+                                 'updates itself.')
         parser.add_argument('--config', required=True, help='Configuration file containing your username, password, and mint cookie')
         parser.add_argument('--validate_ini', action="store_true", default=False, help='Validates the input configuration file')
         parser.add_argument('--validate_emails',  action="store_true", default=False, help='Validates sending emails to all users in the configuration file')
@@ -121,9 +142,9 @@ class MintCheck:
 
 def main():
     mint_check = MintCheck()
-
+    logger = None
     try:
-        if mint_check.args.sleep:
+        if mint_check.args.live:
             sleep_time = randint(0, 60 * mint_check.config.general_sleep)
             mint_check.logger.debug("starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') +
                                     " for " +
@@ -135,12 +156,16 @@ def main():
         logger = mint_check.logger
         mint_check.collect_and_send()
     except Exception as (e):
+        if logger is not None:
+            logger.critical("Exception caught!")
         type_, value_, traceback_ = sys.exc_info()
         traceback.print_exc()
         message = "<html>"
         tb = traceback.format_exception(type_, value_, traceback_)
         for line in tb:
             message += line + "<br>"
+            if logger is not None:
+                logger.critical(line)
         message += "\n Log information:\n"
         with open(mint_check.config.general_log_file, 'r') as f:
             data = f.read().replace("\n", "<br>")
