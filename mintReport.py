@@ -218,7 +218,7 @@ class PrettyPrint:
                                     if "credit" in account_type:
                                         color_style = ";color:" + self.config.account_type_credit_fg \
                                                       + ";" + "background-color:" + bg_color
-                                with tags.tbody():
+                                    with tags.tbody():
                                         with tags.tr(style=BORDER_STYLE + color_style):
                                             tags.td(account["fiName"])
                                             tags.td(account["name"])
