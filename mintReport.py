@@ -1,4 +1,5 @@
 import dominate.tags as tags
+from dominate.util import raw
 from emailSender import EmailSender
 from dateutil.relativedelta import relativedelta
 import locale
@@ -196,7 +197,11 @@ class PrettyPrint:
                     accounts_html = tags.html()
                     with accounts_html.add(tags.body()).add(tags.div(id='content')):
                         tags.h1("Current Balances in Accounts", align="center")
-                        tags.h2("Credit cards are highlighted", style="color:" + self.config.account_type_credit_fg)
+                        raw_html = 'Colors are as follows:<font color="' + self.config.account_type_credit_fg\
+                                   + '">Credit cards</font>, '\
+                                   + '<font color="' + self.config.account_type_bank_fg\
+                                   + '">Bank Accounts</font>'
+                        tags.div(raw(raw_html))
                         with tags.table(rules="cols", frame="box"):
                             with tags.thead(style=BORDER_STYLE):
                                 tags.th("Financial Institution")
