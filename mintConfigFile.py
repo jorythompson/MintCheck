@@ -9,14 +9,14 @@ import sys
 from emailSender import EmailSender
 
 # mint connection block
-MINT_TITLE = "Mint Connection"
+MINT_TITLE = "mint connection"
 MINT_USER_USERNAME = "username"
 MINT_USER_PASSWORD = "password"
 MINT_COOKIE = "ius_cookie"
 MINT_REMOVE_DUPLICATES ="remove_duplicates"
 
 # general block
-GENERAL_TITLE = "General"
+GENERAL_TITLE = "general"
 GENERAL_WEEK_START = "week_start"
 GENERAL_LOG_LEVEL = "log_level"
 GENERAL_LOG_FILE = "log_file"
@@ -58,8 +58,19 @@ PAST_DUE_DAYS_BEFORE = "days_before"
 PAST_DUE_FOREGROUND_COLOR = "fg_color"
 PAST_DUE_BACKGROUND_COLOR = "bg_color"
 
+BALANCE_WARNINGS_TITLE = "balance warnings"
+
 SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, DEBUG_TITLE, COLORS_TITLE,
-               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE]
+               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE, BALANCE_WARNINGS_TITLE]
+
+
+class BalanceWarning:
+    def __init__(self, key, val):
+        self.account_name = key
+        for comparator in [">", "<", "="]:
+            if comparator in val:
+                self.amount = float(val.replace(comparator, "").replace("$", "").replace(",", ""))
+                self.comparator = comparator
 
 
 class MintUser:
@@ -142,6 +153,19 @@ class MintConfigFile:
         self.general_week_start = config.get(GENERAL_TITLE, GENERAL_WEEK_START)
         self.logger = logging.getLogger("mintConfig")
 
+        # Balance Warnings section
+        self.balance_warnings = []
+        for (key, val) in config.items(BALANCE_WARNINGS_TITLE):
+            try:
+                balance_warning = BalanceWarning(key, val)
+                if balance_warning.account_name == "credit":
+                    self.balance_warning_credit = balance_warning
+                elif balance_warning.account_name == "bank":
+                    self.balance_warning_bank = balance_warning
+                else:
+                    self.balance_warnings.append(balance_warning)
+            except:
+                pass
         # LOCALE section
         try:
             self.locale_val = config.get(LOCALE_TITLE, platform.system())

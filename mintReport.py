@@ -38,6 +38,28 @@ class PrettyPrint:
             elif "daily" in user.frequency and "daily" in frequency:
                 start_date = self.now + relativedelta(days=-2)
                 report_frequency = "daily"
+            balance_warnings = []
+            for account in self.accounts.accounts:
+                account_name = account["name"]
+                if account_name in user.active_accounts or "all" in user.active_accounts and not account["isClosed"]:
+                    account_value = account["value"]
+                    t = None
+                    for warning in self.config.balance_warnings:
+                        if account_name.lower() == warning.account_name.lower():
+                            t = account, warning
+                            break
+                    if t is None:
+                        if "credit" in account["accountType"]:
+                            t = account, self.config.balance_warning_credit
+                        elif "bank" in account["accountType"]:
+                            t = account, self.config.balance_warning_bank
+                    if t is not None:
+                        if t[1].comparator == ">" and abs(account_value) > t[1].amount:
+                            balance_warnings.append(t)
+                        elif t[1].comparator == "<" and abs(account_value) < t[1].amount:
+                            balance_warnings.append(t)
+                        elif t[1].comparator == "=" and abs(account_value) == t[1].amount:
+                            balance_warnings.append(t)
             if start_date is not None:
                 bad_transactions = []
                 transactions = []
@@ -56,6 +78,7 @@ class PrettyPrint:
                                 mint_account = self.accounts.get_account(account_name)
                                 user_accounts[user] = mint_account
                                 account_type = str(mint_account["accountType"]).lower()
+                                account_value = mint_account["value"]
                                 account_message = "This"
                                 if "bank" in account_type:
                                     fg_color = self.config.account_type_bank_fg
@@ -103,7 +126,7 @@ class PrettyPrint:
                                     acc = account_name
                                 transactions, total = self.transactions.get_transactions(fi, account_name, start_date)
                                 tags.h2(acc + " has a balance of " +
-                                        locale.currency(mint_account["value"], grouping=True) +
+                                        locale.currency(account_value, grouping=True) +
                                         ".  Total transactions for this report is " +
                                         locale.currency(total, grouping=True) + ".",
                                         style="color:" + fg_color + ";" + "background-color:" + bg_color)
@@ -144,6 +167,38 @@ class PrettyPrint:
                                                     tags.td(locale.currency(amount, grouping=True),
                                                             style="text-align:right")
                                                     tags.td("")
+                balance_warnings_html = ""
+                if len(balance_warnings) > 0:
+                    self.logger.debug("assembling balance warnings")
+                    balance_warnings_html = tags.html()
+                    with balance_warnings_html.add(tags.body()).add(tags.div(id='content')):
+                        tags.h1("Accounts With Balance Alerts", align="center")
+                        with tags.table(rules="cols", frame="box"):
+                            with tags.thead(style=BORDER_STYLE):
+                                tags.th("Financial Institution")
+                                tags.th("Account")
+                                tags.th("Amount")
+                                tags.th(" ")
+                                tags.th("Threshold")
+                                tags.tr(style=BORDER_STYLE)
+                            for warning in balance_warnings:
+                                with tags.tr(style="color:" + "black"):
+                                    try:
+                                        f = user.rename_institutions[warning[0]["fiName"]]
+                                    except KeyError:
+                                        f = warning[0]["fiName"]
+                                    tags.td(f)
+                                    try:
+                                        a = user.rename_accounts[warning[0]["accountName"]]
+                                    except KeyError:
+                                        a = warning[0]["accountName"]
+                                    tags.td(a)
+                                    value = locale.currency(warning[0]["value"], grouping=True)
+                                    tags.td(value, style="text-align:right")
+                                    tags.td(warning[1].comparator)
+                                    amount = locale.currency(warning[1].amount, grouping=True)
+                                    tags.td(amount, style="text-align:right")
+
                 fees_html = ""
                 if len(bad_transactions) > 0:
                     self.logger.debug("assembling bad transactions")
@@ -248,8 +303,10 @@ class PrettyPrint:
                                 tags.td("")
                                 tags.td(locale.currency(total, grouping=True))
                     message = ""
+                if len(balance_warnings) > 0:
+                    message += str(balance_warnings_html)
                 if len(bad_transactions) > 0:
-                    message = str(fees_html)
+                    message += str(fees_html)
                 if len(transactions) > 0:
                     message += str(activity_html)
                 if len(accounts) > 0:
