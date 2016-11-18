@@ -180,6 +180,7 @@ class PrettyPrint:
                                 tags.th("Amount")
                                 tags.th(" ")
                                 tags.th("Threshold")
+                                tags.th("Due")
                                 tags.tr(style=BORDER_STYLE)
                             for warning in balance_warnings:
                                 with tags.tr(style="color:" + "black"):
@@ -197,7 +198,13 @@ class PrettyPrint:
                                     tags.td(value, style="text-align:right")
                                     tags.td(warning[1].comparator)
                                     amount = locale.currency(warning[1].amount, grouping=True)
+                                    due_date = warning[0]["dueDate"]
                                     tags.td(amount, style="text-align:right")
+                                    if due_date is None:
+                                        due_date = "unknown"
+                                    else:
+                                        due_date = due_date.strftime("%a, %b %d")
+                                    tags.td(due_date)
 
                 fees_html = ""
                 if len(bad_transactions) > 0:

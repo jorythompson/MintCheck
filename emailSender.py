@@ -7,7 +7,7 @@ import logging
 
 
 class EmailConnection:
-    TITLE = "Email Connection"
+    TITLE = "email connection"
     USERNAME = "username"
     PASSWORD = "password"
     FROM = "from"
