@@ -44,7 +44,7 @@ class MintCheck:
         else:
             self.logger.debug("Connecting to Mint...")
             mint = mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
-                                ius_session=self.config.mint_cookie)
+                                ius_session=self.config.mint_cookie, thx_guid=self.config.mint_cookie_2)
             if self.args.live:
                 self.logger.debug("Refreshing Mint")
                 mint.initiate_account_refresh()

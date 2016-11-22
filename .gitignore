@@ -1,4 +1,5 @@
 *.pickle
+payment*.ini
 home.ini
 work.ini
 laptop-home.ini

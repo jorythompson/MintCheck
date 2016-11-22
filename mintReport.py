@@ -86,16 +86,16 @@ class PrettyPrint:
                                     account_message += " is a bank account"
                                 elif "credit" in account_type:
                                     account_message += " credit card"
-                                    due_now = mint_account["dueDate"]
+                                    next_payment_date = self.config.get_next_payment_date(account_name, mint_account["dueDate"])
                                     next_payment_amount = mint_account["dueAmt"]
                                     trigger_date = now + datetime.timedelta(days=-self.config.past_due_days_before)
-                                    if due_now is not None and due_now <= trigger_date and next_payment_amount > 0:
+                                    if next_payment_date is not None and next_payment_date <= trigger_date\
+                                            and next_payment_amount > 0:
                                         fg_color = self.config.past_due_fg_color
                                         bg_color = self.config.past_due_bg_color
                                     else:
                                         fg_color = self.config.account_type_credit_fg
                                         bg_color = self.config.account_type_credit_bg
-                                    next_payment_date = mint_account["dueDate"]
                                     if next_payment_date is None:
                                         next_payment_date = " on undetermined date"
                                     else:
@@ -268,8 +268,8 @@ class PrettyPrint:
                             with tags.thead(style=BORDER_STYLE):
                                 tags.th("Financial Institution")
                                 tags.th("Account")
-                                tags.th("Notes")
                                 tags.th("Amount")
+                                tags.th("Due")
                                 tags.tr(style=BORDER_STYLE)
                             total = 0
                             handled_accounts = []
@@ -280,29 +280,29 @@ class PrettyPrint:
                                     handled_accounts.append(account["name"])
                                     color_style = ""
                                     account_type = account["accountType"].lower()
-                                    if "bank" in account_type:
+                                    if account["accountType"] == "bank":
                                         color_style = ";color:" + self.config.account_type_bank_fg + ";" + "background-color:" + bg_color
-                                    if "credit" in account_type:
+                                    elif account["accountType"] == "credit":
                                         color_style = ";color:" + self.config.account_type_credit_fg \
                                                       + ";" + "background-color:" + bg_color
                                     with tags.tbody():
                                         with tags.tr(style=BORDER_STYLE + color_style):
                                             tags.td(account["fiName"])
-                                            tags.td(account["name"])
-                                            notes = ""
+                                            account_name = account["name"]
+                                            tags.td(account_name)
                                             if account["accountType"] == "credit":
                                                 next_payment_amount = account["currentBalance"]
-                                                next_payment_date = account["dueDate"]
-                                                if next_payment_amount is not None and next_payment_date is not None:
-                                                    notes = locale.currency(next_payment_amount, grouping=True) + " due " +\
-                                                            next_payment_date.strftime("%a, %b %d")
-                                                elif next_payment_amount is not None and next_payment_amount > 0:
-                                                    notes = locale.currency(next_payment_amount, grouping=True) + \
-                                                            " is due in the near future"
-                                                elif next_payment_date is not None and next_payment_amount > 0:
-                                                    notes = "payment due " + next_payment_date.strftime("%a, %b %d")
-                                            tags.td(notes)
+                                                next_payment_date = self.config.get_next_payment_date(
+                                                    account_name, account["dueDate"])
                                             tags.td(locale.currency(account["currentBalance"], grouping=True))
+                                            if "credit" in account_type:
+                                                if next_payment_date is None:
+                                                    next_payment_date = "N/A"
+                                                else:
+                                                    next_payment_date = next_payment_date.strftime("%a, %b %d")
+                                                tags.td(next_payment_date)
+                                            else:
+                                                tags.td("")
                                             total += account["value"]
                             with tags.tr(style=BORDER_STYLE + color_style):
                                 tags.td("Total")

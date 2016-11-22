@@ -7,12 +7,16 @@ import locale
 import platform
 import sys
 from emailSender import EmailSender
+import datetime
+from dateutil.relativedelta import relativedelta
+import os
 
 # mint connection block
 MINT_TITLE = "mint connection"
 MINT_USER_USERNAME = "username"
 MINT_USER_PASSWORD = "password"
 MINT_COOKIE = "ius_cookie"
+MINT_COOKIE_2 = "thx_guid"
 MINT_REMOVE_DUPLICATES ="remove_duplicates"
 
 # general block
@@ -59,9 +63,10 @@ PAST_DUE_FOREGROUND_COLOR = "fg_color"
 PAST_DUE_BACKGROUND_COLOR = "bg_color"
 
 BALANCE_WARNINGS_TITLE = "balance warnings"
+BILL_DATES_TITLE = "bill dates"
 
 SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, DEBUG_TITLE, COLORS_TITLE,
-               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE, BALANCE_WARNINGS_TITLE]
+               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE, BALANCE_WARNINGS_TITLE, BILL_DATES_TITLE]
 
 
 class BalanceWarning:
@@ -74,7 +79,6 @@ class BalanceWarning:
 
 
 class MintUser:
-
     def __init__(self, name, config):
         self.name = name
         self.email = ast.literal_eval("[" + config.get(name, USER_EMAIL) + "]")
@@ -126,36 +130,42 @@ def dump_config_value(key, value=None):
 
 class MintConfigFile:
     def __init__(self, config_file, validate=False, test_email=False):
-        config = ConfigParser.ConfigParser()
-        config.read(config_file)
+        self.config_file = config_file
+        self.config = ConfigParser.ConfigParser()
+        self.config.read(config_file)
 
         # MINT section
         try:
-            self.mint_username = config.get(MINT_TITLE, MINT_USER_USERNAME)
+            self.mint_username = self.config.get(MINT_TITLE, MINT_USER_USERNAME)
         except Exception:
             print MINT_USER_USERNAME + " must be set under " + MINT_TITLE
             sys.exit()
         try:
-            self.mint_password = config.get(MINT_TITLE, MINT_USER_PASSWORD)
+            self.mint_password = self.config.get(MINT_TITLE, MINT_USER_PASSWORD)
         except Exception:
             print MINT_USER_PASSWORD + " must be set under " + MINT_TITLE
             sys.exit()
         try:
-            self.mint_cookie = config.get(MINT_TITLE, MINT_COOKIE)
+            self.mint_cookie = self.config.get(MINT_TITLE, MINT_COOKIE)
         except Exception:
             print MINT_COOKIE + " must be set under " + MINT_TITLE
             sys.exit()
-        self.mint_remove_duplicates = config.get(MINT_TITLE, MINT_REMOVE_DUPLICATES)
-        colors = config.items(COLORS_TITLE)
+        try:
+            self.mint_cookie_2 = self.config.get(MINT_TITLE, MINT_COOKIE_2)
+        except Exception:
+            print MINT_COOKIE_2 + " must be set under " + MINT_TITLE
+            sys.exit()
+        self.mint_remove_duplicates = self.config.get(MINT_TITLE, MINT_REMOVE_DUPLICATES)
+        colors = self.config.items(COLORS_TITLE)
         self.color_tags = {}
         for color in colors:
             self.color_tags[color[0]] = ast.literal_eval("[" + color[1] + "]")
-        self.general_week_start = config.get(GENERAL_TITLE, GENERAL_WEEK_START)
+        self.general_week_start = self.config.get(GENERAL_TITLE, GENERAL_WEEK_START)
         self.logger = logging.getLogger("mintConfig")
 
         # Balance Warnings section
         self.balance_warnings = []
-        for (key, val) in config.items(BALANCE_WARNINGS_TITLE):
+        for (key, val) in self.config.items(BALANCE_WARNINGS_TITLE):
             try:
                 balance_warning = BalanceWarning(key, val)
                 if balance_warning.account_name == "credit":
@@ -168,7 +178,7 @@ class MintConfigFile:
                 pass
         # LOCALE section
         try:
-            self.locale_val = config.get(LOCALE_TITLE, platform.system())
+            self.locale_val = self.config.get(LOCALE_TITLE, platform.system())
             locale.setlocale(locale.LC_ALL, self.locale_val)
         except Exception:
             print "\"" + platform.system() + "\" must be set under [" + LOCALE_TITLE + "] in the configuration settings"
@@ -176,83 +186,87 @@ class MintConfigFile:
 
         # GENERAL section
         try:
-            self.general_admin_email = config.get(GENERAL_TITLE, GENERAL_ADMIN_EMAIL)
+            self.general_admin_email = self.config.get(GENERAL_TITLE, GENERAL_ADMIN_EMAIL)
         except Exception:
             print GENERAL_ADMIN_EMAIL + " must be set under " + GENERAL_TITLE
             sys.exit()
         try:
-            self.general_users = ast.literal_eval("[" + config.get(GENERAL_TITLE, GENERAL_USERS) + "]")
+            self.general_users = ast.literal_eval("[" + self.config.get(GENERAL_TITLE, GENERAL_USERS) + "]")
         except Exception:
             self.general_users = ["all"]
         try:
-            level = config.get(GENERAL_TITLE, GENERAL_LOG_LEVEL)
+            level = self.config.get(GENERAL_TITLE, GENERAL_LOG_LEVEL)
         except Exception:
             level = logging.WARN
         try:
-            level = config.get(GENERAL_TITLE, GENERAL_LOG_LEVEL)
+            level = self.config.get(GENERAL_TITLE, GENERAL_LOG_LEVEL)
         except Exception:
             level = logging.WARN
         try:
-            self.general_sleep = int(config.get(GENERAL_TITLE, GENERAL_MAX_SLEEP))
+            self.general_sleep = int(self.config.get(GENERAL_TITLE, GENERAL_MAX_SLEEP))
         except Exception:
             self.general_sleep = 10
         try:
-            self.general_log_file = config.get(GENERAL_TITLE, GENERAL_LOG_FILE)
+            self.general_log_file = self.config.get(GENERAL_TITLE, GENERAL_LOG_FILE)
+            file_path = os.path.dirname(__file__)
+            self.general_log_file = os.path.join(file_path, self.general_log_file)
         except Exception:
             self.general_log_file = "MintCheck.log"
         try:
-            log_console = config.getboolean(GENERAL_TITLE, GENERAL_LOG_CONSOLE)
+            log_console = self.config.getboolean(GENERAL_TITLE, GENERAL_LOG_CONSOLE)
         except Exception:
             log_console = False
 
         # DEBUG section
         try:
-            self.debug_download = config.getboolean(DEBUG_TITLE, DEBUG_DOWNLOAD)
+            self.debug_download = self.config.getboolean(DEBUG_TITLE, DEBUG_DOWNLOAD)
         except Exception:
             self.debug_download = False
         try:
-            self.debug_pickle_file = config.get(DEBUG_TITLE, DEBUG_PICKLE_FILE)
+            self.debug_pickle_file = self.config.get(DEBUG_TITLE, DEBUG_PICKLE_FILE)
+            file_path = os.path.dirname(__file__)
+            self.debug_pickle_file = os.path.join(file_path, self.debug_pickle_file)
         except Exception:
             self.debug_pickle_file = None
         try:
-            self.debug_debugging = config.getboolean(DEBUG_TITLE, DEBUG_DEBUGGING)
+            self.debug_debugging = self.config.getboolean(DEBUG_TITLE, DEBUG_DEBUGGING)
         except Exception:
             self.debug_debugging = False
         try:
-            self.general_exceptions_to =  ast.literal_eval("[" + config.get(GENERAL_TITLE, GENERAL_EXCEPTIONS_TO) + "]")
+            self.general_exceptions_to =  ast.literal_eval("[" + self.config.get(GENERAL_TITLE, GENERAL_EXCEPTIONS_TO) + "]")
         except Exception:
             self.general_exceptions_to = [self.general_admin_email]
         try:
-            self.debug_copy_admin = config.getboolean(DEBUG_TITLE, DEBUG_COPY_ADMIN)
+            self.debug_copy_admin = self.config.getboolean(DEBUG_TITLE, DEBUG_COPY_ADMIN)
         except Exception:
             self.debug_copy_admin = False
         try:
-            self.account_type_credit_fg = config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT_FG)
+            self.account_type_credit_fg = self.config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT_FG)
         except Exception:
             self.account_type_credit_fg = "black"
         try:
-            self.account_type_credit_bg = config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT_BG)
+            self.account_type_credit_bg = self.config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT_BG)
         except Exception:
             self.account_type_credit_bg = "white"
         try:
-            self.account_type_bank_fg = config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_FG)
+            self.account_type_bank_fg = self.config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_FG)
         except Exception:
             self.account_type_bank_fg = "black"
         try:
-            self.account_type_bank_bg = config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_BG)
+            self.account_type_bank_bg = self.config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_BG)
         except Exception:
             self.account_type_bank_bg = "white"
 
         try:
-            self.past_due_days_before = config.getint(PAST_DUE_TITLE, PAST_DUE_DAYS_BEFORE)
+            self.past_due_days_before = self.config.getint(PAST_DUE_TITLE, PAST_DUE_DAYS_BEFORE)
         except Exception:
             self.past_due_days_before = 0
         try:
-            self.past_due_fg_color = config.get(PAST_DUE_TITLE, PAST_DUE_FOREGROUND_COLOR)
+            self.past_due_fg_color = self.config.get(PAST_DUE_TITLE, PAST_DUE_FOREGROUND_COLOR)
         except Exception:
             self.past_due_fg_color = "red"
         try:
-            self.past_due_bg_color = config.get(PAST_DUE_TITLE, PAST_DUE_BACKGROUND_COLOR)
+            self.past_due_bg_color = self.config.get(PAST_DUE_TITLE, PAST_DUE_BACKGROUND_COLOR)
         except Exception:
             self.past_due_bg_color = "white"
 
@@ -267,11 +281,11 @@ class MintConfigFile:
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
         self.logger.debug("Starting session")
-        self.email_connection = EmailConnection(config)
+        self.email_connection = EmailConnection(self.config)
         self.users = []
-        for user in config.sections():
+        for user in self.config.sections():
             if user not in SKIP_TITLES:
-                self.users.append(MintUser(user, config))
+                self.users.append(MintUser(user, self.config))
 
         if validate or test_email:
             # mint connection block
@@ -335,8 +349,51 @@ class MintConfigFile:
                     for email in user.email:
                         self.logger.debug("Sending test email to " + user.name)
                         email_sender.send(email, user.subject, "This is a test message from MintCheck")
-            sys.exit()
+
+    @staticmethod
+    def next_date_from_day(day):
+        today = datetime.datetime.now()
+        if day > today.day:
+            next_date = today.replace(day=day)
+        else:
+            next_date = today.replace(day=day) + relativedelta(months=1)
+        return next_date
+
+    def get_next_payment_date(self, account_name, next_date):
+        try:
+            config_file = "payment_dates_" + self.config_file
+            config = ConfigParser.ConfigParser()
+            config.read(config_file)
+            if next_date is None:
+                try:
+                    next_day = config.getint(BILL_DATES_TITLE, account_name)
+                    return MintConfigFile.next_date_from_day(next_day)
+                except:
+                    return None
+            else:
+                try:
+                    config.add_section(BILL_DATES_TITLE)
+                except ConfigParser.DuplicateSectionError:
+                    pass
+                config.set(BILL_DATES_TITLE, account_name, next_date.day)
+                config_file = open(config_file, "w")
+                config.write(config_file)
+                config_file.close()
+                return next_date
+        except:
+            return next_date
 
 if __name__ == "__main__":
     mint_config = MintConfigFile("home.ini", validate=True, test_email=False)
-    mint_config.logger.info("Done")
+    now = datetime.datetime.now()
+    import os
+    os.remove("payment_dates_" + mint_config.config_file)
+    print mint_config.get_next_payment_date("test", None)
+    print mint_config.get_next_payment_date("test", now + relativedelta(days=-2))
+    print mint_config.get_next_payment_date("test", None)
+    print mint_config.get_next_payment_date("test", now + relativedelta(days=-2))
+    print mint_config.get_next_payment_date("test", None)
+    print mint_config.get_next_payment_date("test", now + relativedelta(days=2))
+    print mint_config.get_next_payment_date("test", None)
+    print mint_config.get_next_payment_date("test", now + relativedelta(days=2))
+    print mint_config.logger.info("Done")
