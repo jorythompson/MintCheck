@@ -42,23 +42,22 @@ class PrettyPrint:
             for account in self.accounts.accounts:
                 account_name = account["name"]
                 if account_name in user.active_accounts or "all" in user.active_accounts and not account["isClosed"]:
-                    account_value = account["value"]
                     t = None
                     for warning in self.config.balance_warnings:
-                        if account_name.lower() == warning.account_name.lower():
+                        if account_name == warning.account_name:
                             t = account, warning
                             break
                     if t is None:
-                        if "credit" in account["accountType"]:
+                        if account["accountType"] == "credit":
                             t = account, self.config.balance_warning_credit
-                        elif "bank" in account["accountType"]:
+                        elif account["accountType"] == "bank":
                             t = account, self.config.balance_warning_bank
                     if t is not None:
-                        if t[1].comparator == ">" and abs(account_value) > t[1].amount:
+                        if t[1].comparator == ">" and abs(account["value"]) > t[1].amount:
                             balance_warnings.append(t)
-                        elif t[1].comparator == "<" and abs(account_value) < t[1].amount:
+                        elif t[1].comparator == "<" and abs(account["value"]) < t[1].amount:
                             balance_warnings.append(t)
-                        elif t[1].comparator == "=" and abs(account_value) == t[1].amount:
+                        elif t[1].comparator == "=" and abs(account["value"]) == t[1].amount:
                             balance_warnings.append(t)
             if start_date is not None:
                 bad_transactions = []
@@ -77,14 +76,12 @@ class PrettyPrint:
                                 handled_accounts.append(account_name)
                                 mint_account = self.accounts.get_account(account_name)
                                 user_accounts[user] = mint_account
-                                account_type = str(mint_account["accountType"]).lower()
-                                account_value = mint_account["value"]
                                 account_message = "This"
-                                if "bank" in account_type:
+                                if mint_account["accountType"] == "bank":
                                     fg_color = self.config.account_type_bank_fg
                                     bg_color = self.config.account_type_bank_bg
                                     account_message += " is a bank account"
-                                elif "credit" in account_type:
+                                elif mint_account["accountType"] == "credit":
                                     account_message += " credit card"
                                     next_payment_date = self.config.get_next_payment_date(account_name, mint_account["dueDate"])
                                     next_payment_amount = mint_account["dueAmt"]
@@ -111,7 +108,7 @@ class PrettyPrint:
                                                                   " due"
                                     account_message += next_payment_amount + " and is due on" + next_payment_date
                                 else:
-                                    account_message += account_type.strip()
+                                    account_message += mint_account["accountType"].strip()
                                 if not fis_title_saved:
                                     try:
                                         f = user.rename_institutions[fi]
@@ -121,16 +118,16 @@ class PrettyPrint:
                                                      + ";text-align:center")
                                     fis_title_saved = True
                                 try:
-                                    acc = user.rename_accounts[account_name]
+                                    renamed_account = user.rename_accounts[account_name]
                                 except KeyError:
-                                    acc = account_name
+                                    renamed_account = account_name
                                 transactions, total = self.transactions.get_transactions(fi, account_name, start_date)
-                                tags.h2(acc + " has a balance of " +
-                                        locale.currency(account_value, grouping=True) +
+                                tags.h2(renamed_account + " has a balance of " +
+                                        locale.currency(mint_account["value"], grouping=True) +
                                         ".  Total transactions for this report is " +
                                         locale.currency(total, grouping=True) + ".",
                                         style="color:" + fg_color + ";" + "background-color:" + bg_color)
-                                with tags.table(rules="cols", frame="box"):
+                                with tags.table(rules="cols", frame="box", align="center"):
                                     with tags.thead(style=BORDER_STYLE):
                                         tags.th("Date")
                                         tags.th("Merchant")
@@ -162,10 +159,10 @@ class PrettyPrint:
                                                 if transaction["isDebit"]:
                                                     tags.td("")
                                                     tags.td(locale.currency(-amount, grouping=True),
-                                                            style="text-align:right")
+                                                            align="right")
                                                 else:
                                                     tags.td(locale.currency(amount, grouping=True),
-                                                            style="text-align:right")
+                                                            align="right")
                                                     tags.td("")
                 balance_warnings_html = ""
                 if len(balance_warnings) > 0:
@@ -173,7 +170,7 @@ class PrettyPrint:
                     balance_warnings_html = tags.html()
                     with balance_warnings_html.add(tags.body()).add(tags.div(id='content')):
                         tags.h1("Accounts With Balance Alerts", align="center")
-                        with tags.table(rules="cols", frame="box"):
+                        with tags.table(rules="cols", frame="box", align="center"):
                             with tags.thead(style=BORDER_STYLE):
                                 tags.th("Financial Institution")
                                 tags.th("Account")
@@ -183,25 +180,38 @@ class PrettyPrint:
                                 tags.th("Due")
                                 tags.tr(style=BORDER_STYLE)
                             for warning in balance_warnings:
-                                with tags.tr(style="color:" + "black"):
+                                color_style = ""
+                                if warning[0]["accountType"] == "bank":
+                                    color_style = ";color:" + self.config.account_type_bank_fg + ";" + \
+                                                  "background-color:" + bg_color
+                                elif warning[0]["accountType"] == "credit":
+                                    color_style = ";color:" + self.config.account_type_credit_fg \
+                                                  + ";" + "background-color:" + bg_color
+                                with tags.tr(style=BORDER_STYLE + color_style):
                                     try:
                                         f = user.rename_institutions[warning[0]["fiName"]]
                                     except KeyError:
                                         f = warning[0]["fiName"]
                                     tags.td(f)
                                     try:
-                                        a = user.rename_accounts[warning[0]["accountName"]]
+                                        renamed_account = user.rename_accounts[warning[0]["accountName"]]
                                     except KeyError:
-                                        a = warning[0]["accountName"]
-                                    tags.td(a)
+                                        renamed_account = warning[0]["accountName"]
+                                    tags.td(renamed_account)
                                     value = locale.currency(warning[0]["value"], grouping=True)
-                                    tags.td(value, style="text-align:right")
+                                    tags.td(value, align="right")
                                     tags.td(warning[1].comparator)
                                     amount = locale.currency(warning[1].amount, grouping=True)
-                                    due_date = warning[0]["dueDate"]
-                                    tags.td(amount, style="text-align:right")
+                                    try:
+                                        due_date = warning[0]["dueDate"]
+                                    except:
+                                        due_date = None
+                                    tags.td(amount, align="right")
                                     if due_date is None:
-                                        due_date = "unknown"
+                                        if warning[0]["accountType"] == "credit":
+                                            due_date = "unknown"
+                                        else:
+                                            due_date = ""
                                     else:
                                         due_date = due_date.strftime("%a, %b %d")
                                     tags.td(due_date)
@@ -212,7 +222,7 @@ class PrettyPrint:
                     fees_html = tags.html()
                     with fees_html.add(tags.body()).add(tags.div(id='content')):
                         tags.h1("Flagged Transactions", align="center")
-                        with tags.table(rules="cols", frame="box"):
+                        with tags.table(rules="cols", frame="box", align="center"):
                             with tags.thead(style=BORDER_STYLE):
                                 tags.th("Date")
                                 tags.th("Financial Institution")
@@ -259,17 +269,14 @@ class PrettyPrint:
                     accounts_html = tags.html()
                     with accounts_html.add(tags.body()).add(tags.div(id='content')):
                         tags.h1("Current Balances in Accounts", align="center")
-                        raw_html = 'Colors are as follows:<font color="' + self.config.account_type_credit_fg\
-                                   + '">Credit cards</font>, '\
-                                   + '<font color="' + self.config.account_type_bank_fg\
-                                   + '">Bank Accounts</font>'
-                        tags.div(raw(raw_html))
-                        with tags.table(rules="cols", frame="box"):
+                        with tags.table(rules="cols", frame="box", align="center"):
                             with tags.thead(style=BORDER_STYLE):
                                 tags.th("Financial Institution")
                                 tags.th("Account")
                                 tags.th("Amount")
                                 tags.th("Due")
+                                tags.th("Paid From")
+                                tags.th("balance")
                                 tags.tr(style=BORDER_STYLE)
                             total = 0
                             handled_accounts = []
@@ -279,9 +286,9 @@ class PrettyPrint:
                                         and not account["name"] in handled_accounts:
                                     handled_accounts.append(account["name"])
                                     color_style = ""
-                                    account_type = account["accountType"].lower()
                                     if account["accountType"] == "bank":
-                                        color_style = ";color:" + self.config.account_type_bank_fg + ";" + "background-color:" + bg_color
+                                        color_style = ";color:" + self.config.account_type_bank_fg + ";" +\
+                                                      "background-color:" + bg_color
                                     elif account["accountType"] == "credit":
                                         color_style = ";color:" + self.config.account_type_credit_fg \
                                                       + ";" + "background-color:" + bg_color
@@ -290,18 +297,33 @@ class PrettyPrint:
                                             tags.td(account["fiName"])
                                             account_name = account["name"]
                                             tags.td(account_name)
+                                            tags.td(locale.currency(account["currentBalance"], grouping=True), align="right")
                                             if account["accountType"] == "credit":
-                                                next_payment_amount = account["currentBalance"]
                                                 next_payment_date = self.config.get_next_payment_date(
                                                     account_name, account["dueDate"])
-                                            tags.td(locale.currency(account["currentBalance"], grouping=True))
-                                            if "credit" in account_type:
                                                 if next_payment_date is None:
-                                                    next_payment_date = "N/A"
+                                                    tags.td("N/A", align="center")
                                                 else:
-                                                    next_payment_date = next_payment_date.strftime("%a, %b %d")
-                                                tags.td(next_payment_date)
+                                                    tags.td(next_payment_date.strftime("%a, %b %d"))
+                                                debit_account = None
+                                                debit_amount = None
+                                                for paid_from in self.config.paid_from:
+                                                    if paid_from["credit account"] == account_name:
+                                                        debit_account = paid_from["debit account"]
+                                                        debit_amount = locale.currency(paid_from["balance"],
+                                                                                       grouping=True)
+                                                        break
+                                                if debit_account is None:
+                                                    tags.td("N/A", align="center")
+                                                else:
+                                                    tags.td(debit_account)
+                                                if debit_amount is None:
+                                                    tags.td("N/A", align="center")
+                                                else:
+                                                    tags.td(debit_amount, align="right")
                                             else:
+                                                tags.td("")
+                                                tags.td("")
                                                 tags.td("")
                                             total += account["value"]
                             with tags.tr(style=BORDER_STYLE + color_style):
@@ -318,7 +340,6 @@ class PrettyPrint:
                     message += str(activity_html)
                 if len(accounts) > 0:
                     message += str(accounts_html)
-
                 if message == "":
                     no_activity_html = tags.html()
                     with no_activity_html.add(tags.body()).add(tags.div(id='content')):
@@ -329,6 +350,11 @@ class PrettyPrint:
                 with report_period_html.add(tags.body()).add(tags.div(id='content')):
                     tags.h4("This " + report_frequency + " report was prepared for " + user.name + " starting on " + \
                             start_date.strftime('%m/%d/%y'))
+                    raw_html = 'Colors are as follows:<font color="' + self.config.account_type_credit_fg\
+                                + '">Credit cards</font>, '\
+                                + '<font color="' + self.config.account_type_bank_fg\
+                                + '">Bank Accounts</font>'
+                    tags.div(raw(raw_html))
                         # tags.h1("this is some text", style="color:red").h1("more text", style="color:green")
                         # .add("font color=" + BANK_COLOR).add("Banks are this color")\
                         # .add(fg_color=CREDIT_CARD_COLOR).add("Credit Cards are this color")

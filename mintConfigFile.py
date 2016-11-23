@@ -64,9 +64,10 @@ PAST_DUE_BACKGROUND_COLOR = "bg_color"
 
 BALANCE_WARNINGS_TITLE = "balance warnings"
 BILL_DATES_TITLE = "bill dates"
+PAID_FROM_TITLE = "paid from"
 
 SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, DEBUG_TITLE, COLORS_TITLE,
-               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE, BALANCE_WARNINGS_TITLE, BILL_DATES_TITLE]
+               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE, BALANCE_WARNINGS_TITLE, BILL_DATES_TITLE, PAID_FROM_TITLE]
 
 
 class BalanceWarning:
@@ -132,6 +133,7 @@ class MintConfigFile:
     def __init__(self, config_file, validate=False, test_email=False):
         self.config_file = config_file
         self.config = ConfigParser.ConfigParser()
+        self.config.optionxform = str
         self.config.read(config_file)
 
         # MINT section
@@ -176,6 +178,15 @@ class MintConfigFile:
                     self.balance_warnings.append(balance_warning)
             except:
                 pass
+
+        # Paid from section
+        self.paid_from = []
+        for (key, val) in self.config.items(PAID_FROM_TITLE):
+            temp = dict()
+            temp["credit account"] = key
+            temp["debit account"] = val
+            self.paid_from.append(temp)
+
         # LOCALE section
         try:
             self.locale_val = self.config.get(LOCALE_TITLE, platform.system())

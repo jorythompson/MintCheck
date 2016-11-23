@@ -73,6 +73,14 @@ class MintCheck:
             self.logger.debug("pickling...")
             self.pickle()
 
+        self.logger.debug("assembling \"paid from\" accounts")
+        for paid_from in self.config.paid_from:
+            for account in self.accounts.accounts:
+                if paid_from["debit account"] == account["accountName"]:
+                    paid_from["balance"] = account["value"]
+                    break
+        pass
+
     @staticmethod
     def _get_args():
         parser = argparse.ArgumentParser(description='Read Information from Mint')
