@@ -18,6 +18,7 @@ MINT_USER_PASSWORD = "password"
 MINT_COOKIE = "ius_cookie"
 MINT_COOKIE_2 = "thx_guid"
 MINT_REMOVE_DUPLICATES ="remove_duplicates"
+MINT_IGNORE_ACCOUNTS = "ignore_accounts_containing"
 
 # general block
 GENERAL_TITLE = "general"
@@ -49,6 +50,8 @@ DEBUG_DOWNLOAD = "download"
 DEBUG_PICKLE_FILE = "pickle_file"
 DEBUG_DEBUGGING = "debugging"
 DEBUG_COPY_ADMIN = "copy_admin"
+DEBUG_SAVE_HTML = "save_html"
+DEBUG_SEND_EMAIL = "send_email"
 
 COLORS_TITLE = "colors"
 ACCOUNT_TYPES_TITLE = "account_types"
@@ -157,11 +160,17 @@ class MintConfigFile:
         except Exception:
             print MINT_COOKIE_2 + " must be set under " + MINT_TITLE
             sys.exit()
+
+        try:
+            self.mint_ignore_accounts = self.config.get(MINT_TITLE, MINT_IGNORE_ACCOUNTS)
+        except Exception:
+            self.mint_ignore_accounts = None
+
         self.mint_remove_duplicates = self.config.get(MINT_TITLE, MINT_REMOVE_DUPLICATES)
         colors = self.config.items(COLORS_TITLE)
         self.color_tags = {}
         for color in colors:
-            self.color_tags[color[0]] = ast.literal_eval("[" + color[1] + "]")
+            self.color_tags[color[0]] = ast.literal_eval("[" + color[1].lower() + "]")
         self.general_week_start = self.config.get(GENERAL_TITLE, GENERAL_WEEK_START)
         self.logger = logging.getLogger("mintConfig")
 
@@ -232,7 +241,15 @@ class MintConfigFile:
         try:
             self.debug_download = self.config.getboolean(DEBUG_TITLE, DEBUG_DOWNLOAD)
         except Exception:
-            self.debug_download = False
+            self.debug_download = True
+        try:
+            self.debug_save_html = self.config.get(DEBUG_TITLE, DEBUG_SAVE_HTML)
+        except Exception:
+            self.debug_save_html = None
+        try:
+            self.debug_send_email = self.config.getboolean(DEBUG_TITLE, DEBUG_SEND_EMAIL)
+        except Exception:
+            self.debug_send_email = True
         try:
             self.debug_pickle_file = self.config.get(DEBUG_TITLE, DEBUG_PICKLE_FILE)
             file_path = os.path.dirname(__file__)

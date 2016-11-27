@@ -3,6 +3,7 @@ from dominate.util import raw
 from emailSender import EmailSender
 from dateutil.relativedelta import relativedelta
 import locale
+import operator
 import datetime
 
 BORDER_STYLE = "border-bottom:1px solid black"
@@ -18,6 +19,8 @@ class PrettyPrint:
         self.doc = None
         self.logger = logger
 
+# TODO
+# fees are not being colored
     def send_data(self, frequency):
         self.logger.debug("starting send_data")
         user_accounts = {}
@@ -40,11 +43,12 @@ class PrettyPrint:
                 report_frequency = "daily"
             balance_warnings = []
             for account in self.accounts.accounts:
-                account_name = account["name"]
-                if account_name in user.active_accounts or "all" in user.active_accounts and not account["isClosed"]:
+                if (self.config.mint_ignore_accounts not in account["name"]) and (\
+                                account["name"] in user.active_accounts or \
+                                        "all" in user.active_accounts and not account["isClosed"]):
                     t = None
                     for warning in self.config.balance_warnings:
-                        if account_name == warning.account_name:
+                        if account["name"] == warning.account_name:
                             t = account, warning
                             break
                     if t is None:
@@ -69,8 +73,8 @@ class PrettyPrint:
                     for fi in fis:
                         account_names = self.transactions.get_accounts(fi, start_date)
                         for account_name in account_names:
-                            account_name = str(account_name)
-                            if account_name in user.active_accounts or "all" in user.active_accounts:
+                            if self.config.mint_ignore_accounts not in account_name and \
+                                    (account_name in user.active_accounts or "all" in user.active_accounts):
                                 if account_name in handled_accounts:
                                     continue
                                 handled_accounts.append(account_name)
@@ -141,9 +145,9 @@ class PrettyPrint:
                                         fg_color = "black"
                                         for color in self.config.color_tags:
                                             for word in self.config.color_tags[color]:
-                                                if word in transaction["merchant"] \
-                                                        or word in transaction["mmerchant"] \
-                                                        or word in transaction["omerchant"]:
+                                                if word in transaction["merchant"].lower() \
+                                                        or word in transaction["mmerchant"].lower() \
+                                                        or word in transaction["omerchant"].lower():
                                                     fg_color = color
                                                     bad_transactions.append([transaction, fg_color, bg_color])
                                                     break
@@ -262,9 +266,12 @@ class PrettyPrint:
                 self.logger.debug("assembling account lists")
                 for account in self.accounts.accounts:
                     for account_name in user.account_totals:
-                        if account_name == "all" or account_name == account["name"] and account not in accounts:
+                        if (account_name == "all" or account_name == account["name"]) \
+                                and self.config.mint_ignore_accounts not in account["name"] \
+                                and account not in accounts:
                             accounts.append(account)
                 accounts_html = ""
+                debit_accounts = {}
                 if len(accounts) > 0:
                     accounts_html = tags.html()
                     with accounts_html.add(tags.body()).add(tags.div(id='content')):
@@ -295,12 +302,11 @@ class PrettyPrint:
                                     with tags.tbody():
                                         with tags.tr(style=BORDER_STYLE + color_style):
                                             tags.td(account["fiName"])
-                                            account_name = account["name"]
-                                            tags.td(account_name)
+                                            tags.td(account["name"])
                                             tags.td(locale.currency(account["currentBalance"], grouping=True), align="right")
                                             if account["accountType"] == "credit":
                                                 next_payment_date = self.config.get_next_payment_date(
-                                                    account_name, account["dueDate"])
+                                                    account["name"], account["dueDate"])
                                                 if next_payment_date is None:
                                                     tags.td("N/A", align="center")
                                                 else:
@@ -308,10 +314,19 @@ class PrettyPrint:
                                                 debit_account = None
                                                 debit_amount = None
                                                 for paid_from in self.config.paid_from:
-                                                    if paid_from["credit account"] == account_name:
+                                                    if paid_from["credit account"] == account["name"]:
                                                         debit_account = paid_from["debit account"]
                                                         debit_amount = locale.currency(paid_from["balance"],
                                                                                        grouping=True)
+                                                        if next_payment_date is not None:
+                                                            try:
+                                                                debit_accounts[next_payment_date][paid_from["debit account"]] += account["currentBalance"]
+                                                            except:
+                                                                try:
+                                                                    debit_accounts[next_payment_date][paid_from["debit account"]] = account["currentBalance"]
+                                                                except:
+                                                                    debit_accounts[next_payment_date] = {}
+                                                                    debit_accounts[next_payment_date][paid_from["debit account"]] = account["currentBalance"]
                                                         break
                                                 if debit_account is None:
                                                     tags.td("N/A", align="center")
@@ -332,6 +347,30 @@ class PrettyPrint:
                                 tags.td("")
                                 tags.td(locale.currency(total, grouping=True))
                     message = ""
+
+                debit_accounts_html = ""
+                if len(debit_accounts) > 0:
+                    sorted_debit_accounts = sorted(debit_accounts.items(), key=operator.itemgetter(0))
+                    self.logger.debug("Assembling debit account list")
+                    debit_accounts_html = tags.html()
+                    with debit_accounts_html.add(tags.body()).add(tags.div(id='content')):
+                        tags.h1("Required Balances in Debit Accounts", align="center")
+                        with tags.table(rules="cols", frame="box", align="center"):
+                            with tags.thead(style=BORDER_STYLE):
+                                tags.th("Due")
+                                tags.th("Account")
+                                tags.th("Amount")
+                                tags.tr(style=BORDER_STYLE)
+                            for debit_account in sorted_debit_accounts:
+                                with tags.tr(style=BORDER_STYLE + color_style):
+                                    tags.td(debit_account[0].strftime("%a, %b %d"))
+                                    for key in debit_accounts[debit_account[0]]:
+                                        tags.td(key)
+                                        tags.td(locale.currency(debit_accounts[debit_account[0]][key], grouping=True),
+                                                align="right")
+
+                if len(debit_accounts) > 0:
+                    message += str(debit_accounts_html)
                 if len(balance_warnings) > 0:
                     message += str(balance_warnings_html)
                 if len(bad_transactions) > 0:
@@ -345,27 +384,35 @@ class PrettyPrint:
                     with no_activity_html.add(tags.body()).add(tags.div(id='content')):
                         tags.h1("There was no activity for the selected accounts during this period")
                     message = str(no_activity_html)
-
                 report_period_html = tags.html()
                 with report_period_html.add(tags.body()).add(tags.div(id='content')):
                     tags.h4("This " + report_frequency + " report was prepared for " + user.name + " starting on " + \
                             start_date.strftime('%m/%d/%y'))
-                    raw_html = 'Colors are as follows:<font color="' + self.config.account_type_credit_fg\
+                    raw_html = 'Colors are as follows:<br>Account Types:<font color="' + self.config.account_type_credit_fg\
                                 + '">Credit cards</font>, '\
                                 + '<font color="' + self.config.account_type_bank_fg\
                                 + '">Bank Accounts</font>'
+                    raw_html += "<br>Keywords: "
+                    for color in self.config.color_tags:
+                        for keyword in self.config.color_tags[color]:
+                            raw_html += '<font color = "' + color + '" >' + keyword + ', </font>'
                     tags.div(raw(raw_html))
                         # tags.h1("this is some text", style="color:red").h1("more text", style="color:green")
                         # .add("font color=" + BANK_COLOR).add("Banks are this color")\
                         # .add(fg_color=CREDIT_CARD_COLOR).add("Credit Cards are this color")
                 message = str(report_period_html) + message
-                with open("mailing.html", "w") as out_html:
-                    out_html.write(message)
-                email_sender = EmailSender(self.config.email_connection, self.logger)
-                for email in user.email:
-                    self.logger.debug("Sending email to " + email)
-                    if self.config.debug_copy_admin:
-                        cc = self.config.general_admin_email
-                    else:
-                        cc = None
-                    email_sender.send(email, user.subject, message, cc)
+                if self.config.debug_save_html is not None:
+                    self.logger.debug("saving html file to " + self.config.debug_save_html)
+                    with open(self.config.debug_save_html, "w") as out_html:
+                        out_html.write(message)
+                if self.config.debug_send_email:
+                    email_sender = EmailSender(self.config.email_connection, self.logger)
+                    for email in user.email:
+                        self.logger.debug("Sending email to " + email)
+                        if self.config.debug_copy_admin:
+                            cc = self.config.general_admin_email
+                        else:
+                            cc = None
+                        email_sender.send(email, user.subject, message, cc)
+                else:
+                    self.logger.debug("Not sending emails")
