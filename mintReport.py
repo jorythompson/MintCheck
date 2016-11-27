@@ -43,6 +43,8 @@ class PrettyPrint:
                 report_frequency = "daily"
             balance_warnings = []
             for account in self.accounts.accounts:
+                if "two" in account["name"].lower():
+                    print account["name"]
                 if (self.config.mint_ignore_accounts not in account["name"]) and (\
                                 account["name"] in user.active_accounts or \
                                         "all" in user.active_accounts and not account["isClosed"]):
