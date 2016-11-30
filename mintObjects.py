@@ -4,7 +4,7 @@ from datetime import date, datetime
 def clean_dictionary(name, obj, logger=None):
     if logger is not None:
         logger.debug(name + " before:")
-        print logger.debug(str(obj))
+        logger.debug(str(obj))
     for transaction in obj:
         for key in transaction:
             clean_key = str(key)

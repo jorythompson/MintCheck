@@ -30,11 +30,15 @@ class EmailSender:
 
     def send(self, to_email, subject, message, cc=None):
         self.logger.debug("starting to send email to " + to_email)
-        msg = MIMEMultipart()
+        msg = MIMEMultipart('alternative')
         msg['From'] = self.email_connection.from_user
+        recipients = [to_email]
         msg['To'] = to_email
         if cc is not None:
             msg['Cc'] = cc
+            recipients.append(cc)
+        else:
+            msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(message, "html"))
 
@@ -43,7 +47,7 @@ class EmailSender:
             server.ehlo()
             server.starttls()
             server.login(self.email_connection.username, self.email_connection.password)
-            server.sendmail(self.email_connection.username, to_email, msg.as_string())
+            server.sendmail(self.email_connection.username, recipients, msg.as_string())
             server.quit()
             self.logger.debug("Successfully sent mail to " + to_email)
         except smtplib.SMTPAuthenticationError as e:
