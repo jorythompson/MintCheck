@@ -122,9 +122,6 @@ class MintTransactions:
                 else:
                     total += amount
         return MintTransactions.sort_by_key(transactions, 'date'), total
-#        sorted_transactions = sorted(transactions, key=itemgetter('date'))
-#        sorted_transactions = sorted(transactions, key=lambda k: k['date'])
-#        return sorted_transactions
 
     @staticmethod
     def sort_by_key(transactions, key):
@@ -133,8 +130,6 @@ class MintTransactions:
             i = 0
             while i < len(trans):
                 if trans[i]["date"] > k["date"]:
-#                if datetime.strptime(trans[i][key], MintTransactions.DATE_FORMAT) > \
-#                        datetime.strptime(k[key], MintTransactions.DATE_FORMAT):
                     break
                 else:
                     i += 1

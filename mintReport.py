@@ -47,7 +47,7 @@ class PrettyPrint:
         if len(debit_accounts) > 0 or len(missing_debit_accounts) > 0:
             sorted_debit_accounts = PrettyPrint.multi_key_sort(debit_accounts,
                                                                ["mint next payment date", "mint paid from account"])
-            self.logger.debug("assembling debit account list")
+            self.logger.info("assembling debit account list")
             debit_accounts_html = tags.html()
             with debit_accounts_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Required Balances in Debit Accounts Due Soon", align="center")
@@ -196,7 +196,7 @@ class PrettyPrint:
     def create_balance_warnings(self, balance_warnings, user):
         if len(balance_warnings) > 0:
             balance_warnings_html = tags.html()
-            self.logger.debug("assembling balance warnings")
+            self.logger.info("assembling balance warnings")
             with balance_warnings_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Accounts With Balance Alerts", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
@@ -248,7 +248,7 @@ class PrettyPrint:
 
     def get_fees(self, bad_transactions, user):
         if len(bad_transactions) > 0:
-            self.logger.debug("assembling bad transactions")
+            self.logger.info("assembling bad transactions")
             fees_html = tags.html()
             with fees_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Flagged Transactions", align="center")
@@ -294,7 +294,7 @@ class PrettyPrint:
 
     def get_accounts(self, user):
         accounts = []
-        self.logger.debug("assembling account lists")
+        self.logger.info("assembling account lists")
         for account in self.accounts.accounts:
             for account_name in user.account_totals:
                 if (account_name == "all" or account_name == account["name"]) \
@@ -389,7 +389,7 @@ class PrettyPrint:
             handled_accounts = []
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
                 continue
-            self.logger.debug("handling user:" + user.name)
+            self.logger.info("handling user:" + user.name)
             start_date = None
             report_frequency = None
             if "monthly" in user.frequency and "monthly" in frequency:

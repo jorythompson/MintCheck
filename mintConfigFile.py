@@ -308,7 +308,7 @@ class MintConfigFile:
             console_handler = logging.StreamHandler()
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
-        self.logger.debug("Starting session")
+        self.logger.info("Starting session")
         self.email_connection = EmailConnection(self.config)
         self.users = []
         for user in self.config.sections():

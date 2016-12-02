@@ -28,52 +28,48 @@ class MintCheck:
                                      validate=self.args.validate_ini)
         self.logger = self.config.logger
         self.now = datetime.datetime.now()
-        # self.now = datetime.datetime.strptime('10/01/2016', '%m/%d/%Y') # first of month
-        # self.now = datetime.datetime.strptime('10/27/2016', '%m/%d/%Y') # no activity for the last couple of days
-        # self.now = datetime.datetime.strptime('10/02/2016', '%m/%d/%Y')  #
         self.logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
 
+    def connect(self):
+        return mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
+                            ius_session=self.config.mint_cookie, thx_guid=self.config.mint_cookie_2)
+
     def _get_data(self, start_date):
-        self.logger.debug("getting data...")
-        if not self.config.debug_download:
+        self.logger.info("getting data...")
+        if self.config.debug_download:
+            self.logger.debug("Connecting to Mint...")
+            mint = self.connect()
+            # todo remove if True below
+            if True: #self.args.live:
+                self.logger.debug("Refreshing Mint")
+                mint.initiate_account_refresh()
+                self.logger.debug("Closing the Mint connection")
+                mint.close()
+                sleep_time = 5 * 60 + randint(0, 5 * 60)  # sleep 5 minutes + some random time while mint refreshes
+                self.logger.info("Waiting for Mint to update accounts. Starting to sleep at "
+                                 + datetime.datetime.now().strftime('%H:%M:%S') + " for "
+                                 + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds')
+                                 + " waking at " + (datetime.datetime.now() +
+                                                     datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
+                time.sleep(sleep_time)
+                self.logger.debug("Reconnecting to Mint...")
+                mint = self.connect()
+            self.logger.info("getting accounts...")
+            self.accounts = mintObjects.MintAccounts(mint.get_accounts(get_detail=True), self.logger)
+            self.logger.info("Getting transactions...")
+            self.mint_transactions = mintObjects.MintTransactions(
+                mint.get_transactions_json(include_investment=False, skip_duplicates=self.config.mint_remove_duplicates,
+                                           start_date=start_date.strftime('%m/%d/%y')), self.logger)
+            self.logger.debug("pickling...")
+            self.pickle()
+        else:
             self.logger.debug("unpicking...")
             self.unpickle()
             if self.config.debug_debugging:
                 self.accounts.dump(self.logger)
                 self.mint_transactions.dump(self.logger)
-        else:
-            self.logger.debug("Connecting to Mint...")
-            mint = mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
-                                ius_session=self.config.mint_cookie, thx_guid=self.config.mint_cookie_2)
-            if self.args.live:
-                self.logger.debug("Refreshing Mint")
-                mint.initiate_account_refresh()
-                sleep_time = 15*60 + randint(0, 10*60)  # sleep 15 minutes + some random time while mint refreshes
-                self.logger.debug("starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S')
-                                  + " for "
-                                  + datetime.datetime.fromtimestamp(sleep_time).strftime(
-                    '%M minutes and %S seconds')
-                                  + " waking at "
-                                  + (datetime.datetime.now() +
-                                     datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
-                time.sleep(sleep_time)
-                self.logger.debug("Reconnecting to Mint...")
-                mint = mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
-                                    ius_session=self.config.mint_cookie)
-            self.logger.debug("getting accounts...")
-            if self.config.debug_debugging:
-                logger = self.logger
-            else:
-                logger = None
-            self.accounts = mintObjects.MintAccounts(mint.get_accounts(get_detail=True), logger)
-            self.logger.debug(("Getting transactions..."))
-            self.mint_transactions = mintObjects.MintTransactions(
-                mint.get_transactions_json(include_investment=False, skip_duplicates=self.config.mint_remove_duplicates,
-                                           start_date=start_date.strftime('%m/%d/%y')), logger)
-            self.logger.debug("pickling...")
-            self.pickle()
 
-        self.logger.debug("assembling \"paid from\" accounts")
+        self.logger.info("assembling \"paid from\" accounts")
         for paid_from in self.config.paid_from:
             for account in self.accounts.accounts:
                 if paid_from["debit account"] == account["accountName"]:
@@ -116,7 +112,7 @@ class MintCheck:
             start_date = None
             frequency = None
         if start_date is not None:
-            self.logger.debug("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
+            self.logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
         return start_date, frequency
 
     def collect_and_send(self):
@@ -151,41 +147,47 @@ class MintCheck:
 def main():
     mint_check = MintCheck()
     logger = None
-    try:
-        if mint_check.args.live:
-            sleep_time = randint(0, 60 * mint_check.config.general_sleep)
-            mint_check.logger.debug("starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') +
-                                    " for " +
-                                    datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds') +
-                                    " waking at " +
-                                    (datetime.datetime.now() +
-                                     datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
-            time.sleep(sleep_time)
-        logger = mint_check.logger
-        mint_check.collect_and_send()
-    except Exception as (e):
-        if logger is not None:
-            logger.critical("Exception caught!")
-        type_, value_, traceback_ = sys.exc_info()
-        traceback.print_exc()
-        message = "<html>"
-        tb = traceback.format_exception(type_, value_, traceback_)
-        for line in tb:
-            message += line + "<br>"
-            if logger is not None:
-                logger.critical(line)
-        message += "\n Log information:\n"
-        with open(mint_check.config.general_log_file, 'r') as f:
-            data = f.read().replace("\n", "<br>")
-        message += data
-        email_sender = EmailSender(mint_check.config.email_connection, mint_check.logger)
-        for email_to in mint_check.config.general_exceptions_to:
-            if mint_check.config.debug_copy_admin:
-                cc = mint_check.config.general_admin_email
-            else:
-                cc = None
-            email_sender.send(email_to, "Exception caught in MintCheck", message, cc)
-    mint_check.logger.debug("Done!")
+    for count in range(1, 4):
+        try:
+            if mint_check.args.live:
+                sleep_time = randint(0, 60 * mint_check.config.general_sleep)
+                mint_check.logger.info("Waiting a random time so we don't connect to Mint at the same time every day."
+                                       "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') +
+                                       " for " +
+                                        datetime.datetime.fromtimestamp(sleep_time).strftime(
+                                            '%M minutes and %S seconds') + " waking at " +
+                                        (datetime.datetime.now() +
+                                         datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
+                time.sleep(sleep_time)
+            logger = mint_check.logger
+            mint_check.collect_and_send()
+            break
+        except Exception as (e):
+            if count >= 4:
+                failed_message = "Exception caught!  Tried " + str(count) + " times.  Last exception follows:"
+                if logger is not None:
+                    logger.critical(failed_message)
+                type_, value_, traceback_ = sys.exc_info()
+                traceback.print_exc()
+                message = "<html>"
+                message += "<b><center>" + failed_message + "</center></b><br>"
+                tb = traceback.format_exception(type_, value_, traceback_)
+                for line in tb:
+                    message += line + "<br>"
+                    if logger is not None:
+                        logger.critical(line)
+                message += "\n Log information:\n"
+                with open(mint_check.config.general_log_file, 'r') as f:
+                    data = f.read().replace("\n", "<br>")
+                message += data
+                email_sender = EmailSender(mint_check.config.email_connection, mint_check.logger)
+                for email_to in mint_check.config.general_exceptions_to:
+                    if mint_check.config.debug_copy_admin:
+                        cc = mint_check.config.general_admin_email
+                    else:
+                        cc = None
+                    email_sender.send(email_to, "Exception caught in MintCheck", message, cc)
+    mint_check.logger.info("Done!")
 
 if __name__ == "__main__":
     main()
