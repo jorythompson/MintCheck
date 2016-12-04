@@ -6,17 +6,18 @@ import locale
 from operator import itemgetter
 import datetime
 from itertools import tee, chain, izip, islice
+from mintCheck import MintCheck
 
 BORDER_STYLE = "border-bottom:1px solid black"
 
 
 class PrettyPrint:
-    def __init__(self, accounts, transactions, config, start_date, now, logger):
+    def __init__(self, accounts, transactions, config, start_date, logger):
         self.config = config
         self.accounts = accounts
         self.transactions = transactions
         self.start_date = start_date
-        self.now = now
+        self.now = datetime.datetime.now()
         self.doc = None
         self.logger = logger
 
@@ -54,6 +55,7 @@ class PrettyPrint:
                 with tags.table(rules="cols", frame="box", align="center"):
                     with tags.thead(style=BORDER_STYLE):
                         tags.th("Due")
+                        tags.th("Financial Institution")
                         tags.th("Debit Account")
                         tags.th("Credit Account")
                         tags.th("Amount")
@@ -67,27 +69,24 @@ class PrettyPrint:
                             account_field = ""
                             total_field = ""
                             date_field = ""
-                            if previous_iterable is not None and \
-                                            previous_iterable["debit account"] is not None \
-                                    and previous_iterable["debit account"] == debit_account["debit account"]:
-                                account_field = ""
-                                date_field = ""
-                            if next_iterable is None or (next_iterable["debit account"] is None \
-                                                                 or (
-                                        next_iterable["debit account"] != debit_account["debit account"] \
-                                        or next_iterable["mint next payment date"] != debit_account[
-                                    "mint next payment date"])):
+                            border = None
+                            if next_iterable is None or (next_iterable["debit account"] is None or (
+                                            next_iterable["debit account"] != debit_account["debit account"] \
+                                            or next_iterable["mint next payment date"] != debit_account[
+                                        "mint next payment date"])):
                                 account_field = debit_account["mint paid from account"]
                                 total_field = locale.currency(total, grouping=True)
                                 date_field = debit_account["mint next payment date"].strftime("%a, %b %d")
                                 total = 0
-                            tags.td(date_field, align="right")
-                            tags.td(account_field)
-                            tags.td(debit_account["mint credit account"]["accountName"])
+                                border = BORDER_STYLE
+                            tags.td(date_field, align="right", style=border)
+                            tags.td( debit_account["mint credit account"]["fiName"], style=border)
+                            tags.td(account_field, style=border)
+                            tags.td(debit_account["mint credit account"]["accountName"], style=border)
                             tags.td(
                                 locale.currency(debit_account["mint credit account"]["currentBalance"], grouping=True),
-                                align="right")
-                            tags.td(total_field, align="right")
+                                align="right", style=border)
+                            tags.td(total_field, align="right", style=border)
         return debit_accounts_html
 
     def create_activity(self, start_date, user, handled_accounts, user_accounts, now):
@@ -159,7 +158,7 @@ class PrettyPrint:
                             with tags.thead(style=BORDER_STYLE):
                                 tags.th("Date")
                                 tags.th("Merchant")
-                                tags.th("Amount", colspan="2")
+                                tags.th("Amount", colspan="2", style=BORDER_STYLE)
                                 with tags.tr(style=BORDER_STYLE):
                                     tags.th("")
                                     tags.th("")
@@ -346,16 +345,19 @@ class PrettyPrint:
                                         for paid_from in self.config.paid_from:
                                             if paid_from["credit account"] == account["name"]:
                                                 debit_account = paid_from["debit account"]
-                                                debit_amount = locale.currency(paid_from["balance"],
-                                                                               grouping=True)
-                                                if next_payment_date is not None:
+                                                try:
+                                                    debit_amount = locale.currency(paid_from["balance"], grouping=True)
+                                                except:
+                                                    debit_amount = None
+                                                if next_payment_date is not None and next_payment_date >= self.now:
                                                     paid_noted = True
                                                     paid_from["mint paid from account"] = paid_from["debit account"]
                                                     paid_from["mint next payment date"] = next_payment_date
                                                     paid_from["mint credit account"] = account
                                                     debit_accounts.append(paid_from)
                                                 break
-                                        if not paid_noted and account["accountType"] == "credit":
+                                        if not paid_noted and account["accountType"] == "credit" \
+                                                and next_payment_date is not None and next_payment_date >= self.now:
                                             missing_debit_accounts.append(account)
                                         if debit_account is None:
                                             tags.td("N/A", align="center")
@@ -390,19 +392,11 @@ class PrettyPrint:
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
                 continue
             self.logger.info("handling user:" + user.name)
-            start_date = None
-            report_frequency = None
-            if "monthly" in user.frequency and "monthly" in frequency:
-                start_date = self.start_date
-                report_frequency = "monthly"
-            elif "weekly" in user.frequency and "weekly" in frequency:
-                start_date = self.now + relativedelta(days=-8)
-                report_frequency = "weekly"
-            elif "daily" in user.frequency and "daily" in frequency:
-                start_date = self.now + relativedelta(days=-2)
-                report_frequency = "daily"
+            start_date, report_frequency = MintCheck.get_start_date(self.now, self.config.general_week_start,
+                                                                    self.config.general_month_start, user.frequency)
             balance_warnings = []
             for account in self.accounts.accounts:
+                self.logger.debug("Processing account " + account["name"])
                 if (self.config.mint_ignore_accounts not in account["name"]) and (
                                 account["name"] in user.active_accounts
                         or "all" in user.active_accounts and not account["isClosed"]):
@@ -449,7 +443,7 @@ class PrettyPrint:
                 report_period_html = tags.html()
                 with report_period_html.add(tags.body()).add(tags.div(id='content')):
                     tags.h4("This " + report_frequency + " report was prepared for " + user.name + " starting on " +
-                            start_date.strftime('%m/%d/%y'))
+                            start_date.strftime('%m/%d/%y at %I:%M:%S %p'))
                     raw_html = 'Colors are as follows:<br>Account Types:<font color="' + \
                                self.config.account_type_credit_fg + \
                                '">Credit cards</font>, ' + \

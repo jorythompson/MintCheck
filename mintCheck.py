@@ -35,12 +35,11 @@ class MintCheck:
                             ius_session=self.config.mint_cookie, thx_guid=self.config.mint_cookie_2)
 
     def _get_data(self, start_date):
-        self.logger.info("getting data...")
+        self.logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
         if self.config.debug_download:
             self.logger.debug("Connecting to Mint...")
             mint = self.connect()
-            # todo remove if True below
-            if True: #self.args.live:
+            if self.args.live:
                 self.logger.debug("Refreshing Mint")
                 mint.initiate_account_refresh()
                 self.logger.debug("Closing the Mint connection")
@@ -49,7 +48,7 @@ class MintCheck:
                 self.logger.info("Waiting for Mint to update accounts. Starting to sleep at "
                                  + datetime.datetime.now().strftime('%H:%M:%S') + " for "
                                  + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds')
-                                 + " waking at " + (datetime.datetime.now() +
+                                 + ", waking at " + (datetime.datetime.now() +
                                                      datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
                 time.sleep(sleep_time)
                 self.logger.debug("Reconnecting to Mint...")
@@ -89,45 +88,37 @@ class MintCheck:
         parser.add_argument('--validate_emails',  action="store_true", default=False, help='Validates sending emails to all users in the configuration file')
         return parser.parse_args()
 
-    def get_start_date(self, data_needed):
-        if self.now.day == 1 and \
-                        "monthly" in data_needed and \
-                        self.now.strftime("%A").lower() == self.config.general_week_start.lower() and \
-                        "weekly" in data_needed:
-            start_date = self.now + relativedelta(months=-1)
-            frequency = ["monthly", "weekly", "daily"]
-        elif self.now.day == 1 and "monthly" in data_needed:
-            # first of the month: get all of last month
-            start_date = self.now + relativedelta(months=-1)
-            frequency = ["daily", "monthly"]
-        elif self.now.strftime("%A").lower() == self.config.general_week_start.lower() and \
-                        "weekly" in data_needed:
-            # Sunday: get last weeks
-            start_date = self.now + relativedelta(days=-8)
-            frequency = ["daily", "weekly"]
-        elif "daily" in data_needed:
-            start_date = self.now + relativedelta(days=-2)
-            frequency = ["daily"]
-        else:
-            start_date = None
-            frequency = None
-        if start_date is not None:
-            self.logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
+    @staticmethod
+    def get_start_date(now, week_start, month_start, frequencies_needed):
+        start_date = None
+        frequency = None
+        if (now.day == month_start) and ("monthly" in frequencies_needed):
+            start_date = now + relativedelta(months=-1)
+            frequency = "monthly"
+        elif now.strftime("%A").lower() == week_start.lower()\
+                and "weekly" in frequencies_needed:
+            start_date = now + relativedelta(days=-7)
+            frequency = "weekly"
+        elif "daily" in frequencies_needed:
+            start_date = now + relativedelta(days=-1)
+            frequency = "daily"
         return start_date, frequency
 
     def collect_and_send(self):
-        data_needed = []
+        frequencies_needed = []
         for user in self.config.users:
             for frequency in user.frequency:
-                if frequency not in data_needed:
-                    data_needed.append(frequency)
+                if frequency not in frequencies_needed:
+                    frequencies_needed.append(frequency)
 
-        start_date, frequency = self.get_start_date(data_needed)
-        if start_date is not None:
-            self._get_data(start_date)
-            report = mintReport.PrettyPrint(self.accounts, self.mint_transactions, self.config, start_date, self.now,
-                                            self.logger)
-            report.send_data(frequency)
+        if len(frequencies_needed) > 0:
+            start_date, ignore = self.get_start_date(self.now, self.config.general_week_start,
+                                                     self.config.general_month_start, frequencies_needed)
+            if start_date is not None:
+                self._get_data(start_date)
+                report = mintReport.PrettyPrint(self.accounts, self.mint_transactions, self.config, start_date,
+                                                self.logger)
+                report.send_data(frequencies_needed)
 
     def pickle(self):
         with open(self.config.debug_pickle_file, 'wb') as handle:
@@ -147,7 +138,7 @@ class MintCheck:
 def main():
     mint_check = MintCheck()
     logger = None
-    for count in range(1, 4):
+    for count in range(1, 5):
         try:
             if mint_check.args.live:
                 sleep_time = randint(0, 60 * mint_check.config.general_sleep)
@@ -155,7 +146,7 @@ def main():
                                        "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') +
                                        " for " +
                                         datetime.datetime.fromtimestamp(sleep_time).strftime(
-                                            '%M minutes and %S seconds') + " waking at " +
+                                            '%M minutes and %S seconds') + ", waking at " +
                                         (datetime.datetime.now() +
                                          datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
                 time.sleep(sleep_time)
@@ -163,14 +154,20 @@ def main():
             mint_check.collect_and_send()
             break
         except Exception as (e):
+            if logger is not None:
+                logger.critical("Exception caught!  Tried " + str(count) + " times.")
+                type_, value_, traceback_ = sys.exc_info()
+                traceback.print_exc()
+                tb = traceback.format_exception(type_, value_, traceback_)
+                for line in tb:
+                    logger.critical(line)
             if count >= 4:
-                failed_message = "Exception caught!  Tried " + str(count) + " times.  Last exception follows:"
                 if logger is not None:
-                    logger.critical(failed_message)
+                    logger.critical("Last exception follows:")
                 type_, value_, traceback_ = sys.exc_info()
                 traceback.print_exc()
                 message = "<html>"
-                message += "<b><center>" + failed_message + "</center></b><br>"
+                message += "<b><center>Problem with Mint Checker</center></b><br>"
                 tb = traceback.format_exception(type_, value_, traceback_)
                 for line in tb:
                     message += line + "<br>"

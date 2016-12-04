@@ -15,14 +15,15 @@ import os
 MINT_TITLE = "mint connection"
 MINT_USER_USERNAME = "username"
 MINT_USER_PASSWORD = "password"
-MINT_COOKIE = "ius_cookie"
-MINT_COOKIE_2 = "thx_guid"
+MINT_COOKIE = "ius_session_cookie"
+MINT_COOKIE_2 = "thx_guid_cookie"
 MINT_REMOVE_DUPLICATES ="remove_duplicates"
 MINT_IGNORE_ACCOUNTS = "ignore_accounts_containing"
 
 # general block
 GENERAL_TITLE = "general"
 GENERAL_WEEK_START = "week_start"
+GENERAL_MONTH_START = "month_start"
 GENERAL_LOG_LEVEL = "log_level"
 GENERAL_LOG_FILE = "log_file"
 GENERAL_LOG_CONSOLE = "log_console"
@@ -172,6 +173,7 @@ class MintConfigFile:
         for color in colors:
             self.color_tags[color[0]] = ast.literal_eval("[" + color[1].lower() + "]")
         self.general_week_start = self.config.get(GENERAL_TITLE, GENERAL_WEEK_START)
+        self.general_month_start = self.config.getint(GENERAL_TITLE, GENERAL_MONTH_START)
         self.logger = logging.getLogger("mintConfig")
 
         # Balance Warnings section
@@ -311,8 +313,9 @@ class MintConfigFile:
         self.logger.info("Starting session")
         self.email_connection = EmailConnection(self.config)
         self.users = []
+
         for user in self.config.sections():
-            if user not in SKIP_TITLES:
+            if user not in SKIP_TITLES and user in self.general_users:
                 self.users.append(MintUser(user, self.config))
 
         if validate or test_email:
