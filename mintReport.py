@@ -442,8 +442,9 @@ class PrettyPrint:
                     message = str(no_activity_html)
                 report_period_html = tags.html()
                 with report_period_html.add(tags.body()).add(tags.div(id='content')):
-                    tags.h4("This " + report_frequency + " report was prepared for " + user.name + " starting on " +
-                            start_date.strftime('%m/%d/%y at %I:%M:%S %p'))
+                    tags.h4("This " + report_frequency + " report was prepared for " + user.name +
+                            self.now.strftime(" on %m/%d/%y") +
+                            start_date.strftime(" starting on %m/%d/%y at %I:%M:%S %p"))
                     raw_html = 'Colors are as follows:<br>Account Types:<font color="' + \
                                self.config.account_type_credit_fg + \
                                '">Credit cards</font>, ' + \

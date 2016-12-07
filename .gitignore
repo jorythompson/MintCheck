@@ -9,3 +9,4 @@ laptop.ini
 log.*
 *.log
 pickle.*
+MintCheck.json

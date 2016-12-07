@@ -66,12 +66,17 @@ PAST_DUE_DAYS_BEFORE = "days_before"
 PAST_DUE_FOREGROUND_COLOR = "fg_color"
 PAST_DUE_BACKGROUND_COLOR = "bg_color"
 
+SHEETS_TITLE = "sheets"
+SHEETS_JSON_FILE = "json_file"
+SHEET_SHEET_NAME = "sheet_name"
+
 BALANCE_WARNINGS_TITLE = "balance warnings"
 BILL_DATES_TITLE = "bill dates"
 PAID_FROM_TITLE = "paid from"
 
 SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, DEBUG_TITLE, COLORS_TITLE,
-               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE, BALANCE_WARNINGS_TITLE, BILL_DATES_TITLE, PAID_FROM_TITLE]
+               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE, BALANCE_WARNINGS_TITLE, BILL_DATES_TITLE, PAID_FROM_TITLE,
+               SHEETS_TITLE]
 
 
 class BalanceWarning:
@@ -299,6 +304,16 @@ class MintConfigFile:
             self.past_due_bg_color = self.config.get(PAST_DUE_TITLE, PAST_DUE_BACKGROUND_COLOR)
         except Exception:
             self.past_due_bg_color = "white"
+
+        # sheets section
+        try:
+            self.sheets_json_file = self.config.get(SHEETS_TITLE, SHEETS_JSON_FILE)
+        except:
+            self.sheets_json_file = None
+        try:
+            self.sheets_sheet_name = self.config.get(SHEETS_TITLE, SHEET_SHEET_NAME)
+        except:
+            self.sheets_sheet_name = None
 
         self.logger.setLevel(level)
         file_handler = logging.handlers.RotatingFileHandler(self.general_log_file, mode='a', maxBytes=10000, backupCount=5)
