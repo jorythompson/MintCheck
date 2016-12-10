@@ -113,8 +113,9 @@ class MintTransactions:
         transactions = []
         total = 0.0
         for transaction in self.transactions:
-            if transaction["fi"] == fi and transaction["account"] == account and \
-                            transaction["account"] not in transactions and transaction["date"] >= start_date:
+            if transaction["fi"] == fi and transaction["account"] == account \
+                    and transaction["account"] not in transactions and transaction["date"] >= start_date \
+                    and transaction["amount"] > 0:
                 transactions.append(transaction)
                 amount = transaction["amount"]
                 if transaction["isDebit"]:

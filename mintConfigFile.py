@@ -43,8 +43,6 @@ USER_RENAME_ACCOUNT = "rename_account"
 USER_RENAME_INSTITUTION = "rename_institution"
 
 LOCALE_TITLE = "locale"
-DEBIAN_LOCALE = "debian"
-WINDOWS_LOCALE = "windows"
 
 DEBUG_TITLE = "debug"
 DEBUG_DOWNLOAD = "download"
@@ -57,18 +55,22 @@ DEBUG_SEND_EMAIL = "send_email"
 COLORS_TITLE = "colors"
 ACCOUNT_TYPES_TITLE = "account_types"
 ACCOUNT_TYPES_BANK_FG = "bank_fg_color"
-ACCOUNT_TYPES_BANK_BG = "bank_bg_color"
 ACCOUNT_TYPES_CREDIT_FG = "credit_fg_color"
-ACCOUNT_TYPES_CREDIT_BG = "credit_bg_color"
 
 PAST_DUE_TITLE = "past_due"
 PAST_DUE_DAYS_BEFORE = "days_before"
 PAST_DUE_FOREGROUND_COLOR = "fg_color"
 PAST_DUE_BACKGROUND_COLOR = "bg_color"
 
-SHEETS_TITLE = "sheets"
+SHEETS_TITLE = "google_sheets"
 SHEETS_JSON_FILE = "json_file"
-SHEET_SHEET_NAME = "sheet_name"
+SHEETS_DAY_ERROR = "max_day_error"
+SHEETS_NAME = "sheet_name"
+SHEETS_AMOUNT_COL = "amount_col"
+SHEETS_DATE_COL = "date_col"
+SHEETS_START_ROW = "start_row"
+SHEETS_DEPOSIT_ACCOUNT = "deposit_account"
+SHEETS_TAB_NAME = "tab_name"
 
 BALANCE_WARNINGS_TITLE = "balance warnings"
 BILL_DATES_TITLE = "bill dates"
@@ -87,8 +89,33 @@ class BalanceWarning:
                 self.amount = float(val.replace(comparator, "").replace("$", "").replace(",", ""))
                 self.comparator = comparator
 
+    def dump(self):
+        dump_config_value("account name", self.account_name)
+        dump_config_value("comparator", self.comparator)
+        dump_config_value("amount", self.amount)
+
+
+class GoogleSheet:
+    def __init__(self, section, config):
+        self.sheet_name = config.get(section, SHEETS_NAME)
+        self.amount_col = config.get(section, SHEETS_AMOUNT_COL)
+        self.date_col = config.get(section, SHEETS_DATE_COL)
+        self.start_row = config.getint(section, SHEETS_START_ROW)
+        self.deposit_account = config.get(section, SHEETS_DEPOSIT_ACCOUNT)
+        self.tab_name = config.get(section, SHEETS_TAB_NAME)
+
+    def dump(self):
+        dump_config_value(SHEETS_TITLE)
+        dump_config_value(SHEETS_NAME, self.sheet_name)
+        dump_config_value(SHEETS_AMOUNT_COL, self.amount_col)
+        dump_config_value(SHEETS_DATE_COL, self.date_col)
+        dump_config_value(SHEETS_START_ROW, self.start_row)
+        dump_config_value(SHEETS_DEPOSIT_ACCOUNT, self.deposit_account)
+        dump_config_value(SHEETS_TAB_NAME, self.tab_name)
+
 
 class MintUser:
+    # Throws an exception if email and active_accounts are not set
     def __init__(self, name, config):
         self.name = name
         self.email = ast.literal_eval("[" + config.get(name, USER_EMAIL) + "]")
@@ -204,6 +231,12 @@ class MintConfigFile:
             self.paid_from.append(temp)
 
         # LOCALE section
+        self.locale_vals = []
+        for (key, val) in self.config.items(LOCALE_TITLE):
+            temp = dict()
+            temp[key] = val
+            self.locale_vals.append(temp)
+
         try:
             self.locale_val = self.config.get(LOCALE_TITLE, platform.system())
             locale.setlocale(locale.LC_ALL, self.locale_val)
@@ -280,17 +313,9 @@ class MintConfigFile:
         except Exception:
             self.account_type_credit_fg = "black"
         try:
-            self.account_type_credit_bg = self.config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT_BG)
-        except Exception:
-            self.account_type_credit_bg = "white"
-        try:
             self.account_type_bank_fg = self.config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_FG)
         except Exception:
             self.account_type_bank_fg = "black"
-        try:
-            self.account_type_bank_bg = self.config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_BG)
-        except Exception:
-            self.account_type_bank_bg = "white"
 
         try:
             self.past_due_days_before = self.config.getint(PAST_DUE_TITLE, PAST_DUE_DAYS_BEFORE)
@@ -300,20 +325,6 @@ class MintConfigFile:
             self.past_due_fg_color = self.config.get(PAST_DUE_TITLE, PAST_DUE_FOREGROUND_COLOR)
         except Exception:
             self.past_due_fg_color = "red"
-        try:
-            self.past_due_bg_color = self.config.get(PAST_DUE_TITLE, PAST_DUE_BACKGROUND_COLOR)
-        except Exception:
-            self.past_due_bg_color = "white"
-
-        # sheets section
-        try:
-            self.sheets_json_file = self.config.get(SHEETS_TITLE, SHEETS_JSON_FILE)
-        except:
-            self.sheets_json_file = None
-        try:
-            self.sheets_sheet_name = self.config.get(SHEETS_TITLE, SHEET_SHEET_NAME)
-        except:
-            self.sheets_sheet_name = None
 
         self.logger.setLevel(level)
         file_handler = logging.handlers.RotatingFileHandler(self.general_log_file, mode='a', maxBytes=10000, backupCount=5)
@@ -327,11 +338,25 @@ class MintConfigFile:
             self.logger.addHandler(console_handler)
         self.logger.info("Starting session")
         self.email_connection = EmailConnection(self.config)
-        self.users = []
+        try:
+            self.sheets_json_file = self.config.get(SHEETS_TITLE, SHEETS_JSON_FILE)
+        except:
+            self.logger.warn("json file not specified, ignoring validate from google sheets")
+            self.sheets_json_file = None
 
-        for user in self.config.sections():
-            if user not in SKIP_TITLES and user in self.general_users:
-                self.users.append(MintUser(user, self.config))
+        try:
+            self.sheets_day_error = self.config.getint(SHEETS_TITLE, SHEETS_DAY_ERROR)
+        except:
+            self.sheets_day_error = 3
+        self.users = []
+        self.google_sheets = []
+
+        for section in self.config.sections():
+            if section not in SKIP_TITLES:
+                if section in self.general_users:
+                    self.users.append(MintUser(section, self.config))
+                elif self.sheets_json_file is not None:
+                    self.google_sheets.append(GoogleSheet(section, self.config))
 
         if validate or test_email:
             # mint connection block
@@ -339,11 +364,14 @@ class MintConfigFile:
             dump_config_value(MINT_USER_USERNAME,self.mint_username)
             dump_config_value(MINT_USER_PASSWORD, self.mint_password)
             dump_config_value(MINT_COOKIE, self.mint_cookie)
+            dump_config_value(MINT_COOKIE_2, self.mint_cookie_2)
             dump_config_value(MINT_REMOVE_DUPLICATES, self.mint_remove_duplicates)
+            dump_config_value(MINT_IGNORE_ACCOUNTS, self.mint_ignore_accounts)
 
             # general block
             dump_config_value(GENERAL_TITLE)
             dump_config_value(GENERAL_WEEK_START, self.general_week_start)
+            dump_config_value(GENERAL_MONTH_START, self.general_month_start)
             dump_config_value(GENERAL_LOG_LEVEL, level)
             dump_config_value(GENERAL_LOG_FILE, self.general_log_file)
             dump_config_value(GENERAL_LOG_CONSOLE, log_console)
@@ -351,6 +379,31 @@ class MintConfigFile:
             dump_config_value(GENERAL_USERS, self.general_users)
             dump_config_value(GENERAL_MAX_SLEEP, self.general_sleep)
             dump_config_value(GENERAL_EXCEPTIONS_TO, self.general_exceptions_to)
+
+            # sheets block
+            dump_config_value(SHEETS_TITLE)
+            dump_config_value(SHEETS_TITLE, self.sheets_json_file)
+            for sheet in self.google_sheets:
+                sheet.dump()
+
+            # debug block
+            dump_config_value(DEBUG_TITLE)
+            dump_config_value(DEBUG_DOWNLOAD, self.debug_download)
+            dump_config_value(DEBUG_TITLE, self.debug_save_html)
+            dump_config_value(DEBUG_PICKLE_FILE, self.debug_pickle_file)
+            dump_config_value(DEBUG_DEBUGGING, self.debug_debugging)
+            dump_config_value(DEBUG_COPY_ADMIN, self.debug_copy_admin)
+
+            # paid from block
+            dump_config_value(PAID_FROM_TITLE)
+            for paid_from in self.paid_from:
+                for pf in paid_from:
+                    dump_config_value(pf, paid_from[pf])
+
+            # balance warnings block
+            dump_config_value(BALANCE_WARNINGS_TITLE)
+            for warning in self.balance_warnings:
+                warning.dump()
 
             # colors block
             dump_config_value(COLORS_TITLE)
@@ -360,26 +413,21 @@ class MintConfigFile:
             # account_types block
             dump_config_value(ACCOUNT_TYPES_TITLE)
             dump_config_value(ACCOUNT_TYPES_BANK_FG, self.account_type_bank_fg)
-            dump_config_value(ACCOUNT_TYPES_BANK_BG, self.account_type_bank_bg)
             dump_config_value(ACCOUNT_TYPES_CREDIT_FG, self.account_type_credit_fg)
-            dump_config_value(ACCOUNT_TYPES_CREDIT_BG, self.account_type_credit_bg)
 
             # past_due block
             dump_config_value(PAST_DUE_TITLE)
             dump_config_value(PAST_DUE_DAYS_BEFORE, self.past_due_days_before)
             dump_config_value(PAST_DUE_FOREGROUND_COLOR, self.past_due_fg_color)
-            dump_config_value(PAST_DUE_BACKGROUND_COLOR, self.past_due_bg_color)
-
-            # debug block
-            dump_config_value(DEBUG_TITLE)
-            dump_config_value(DEBUG_DOWNLOAD, self.debug_download)
-            dump_config_value(DEBUG_PICKLE_FILE, self.debug_pickle_file)
-            dump_config_value(DEBUG_DEBUGGING, self.debug_debugging)
-            dump_config_value(DEBUG_COPY_ADMIN, self.debug_copy_admin)
 
             # locale block
             dump_config_value(LOCALE_TITLE)
-            dump_config_value(platform.system(), self.locale_val)
+            for locale_val in self.locale_vals:
+                for lc in locale_val:
+                    if platform.system() == lc:
+                        dump_config_value(lc, locale_val[lc] + " *")
+                    else:
+                        dump_config_value(lc, locale_val[lc])
 
             # email connection block
             dump_config_value(EmailConnection.TITLE)

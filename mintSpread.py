@@ -1,64 +1,76 @@
 import gspread
 import datetime
-import locale
+import sys
 from dateutil import parser
 from mintConfigFile import MintConfigFile
 from oauth2client.service_account import ServiceAccountCredentials
+import re
 
 
 class MintSpread:
-    date_col = "A"
-    amount_col = "B"
-    account_col = "C"
-    deposit_date = "date"
-    deposit_amount = "amount"
-    deposit_account = "account"
+    numbers = re.compile('\d+(?:\.\d+)?')
 
     def __init__(self, config):
         scope = ['https://spreadsheets.google.com/feeds']
         credentials = ServiceAccountCredentials.from_json_keyfile_name(config.sheets_json_file, scope)
+        self.config = config
         self.g_spread = gspread.authorize(credentials)
-        self.worksheet = self.g_spread.open(config.sheets_sheet_name).sheet1
         self.logger = config.logger
-        self.sheet_name = config.sheets_sheet_name
 
-    def get_row(self, row):
-        cell_list = self.worksheet.range(MintSpread.date_col + str(row) + ":" + MintSpread.account_col + str(row))
+    def get_row(self, row, amount_col, date_col, worksheet):
+        self.logger.debug("getting row #" + str(row) + " on tab '" + worksheet.title
+                          + "', on sheet '" + worksheet.spreadsheet.title + "'")
         try:
-            deposit_date = parser.parse(cell_list[0].value)
-        except:
+            date_cell = worksheet.acell(date_col + str(row))
+            deposit_date = parser.parse(date_cell.value)
+        except Exception as e:
+            self.logger.debug("Could not get deposit amount from cell [" + date_col + ":" + str(row) + "]"
+                              + "in sheet '" + worksheet.spreadsheet.title + "' on tab '" + worksheet.title
+                              + "(not necessarily a problem, it could just be end of data)."
+                              + "  Exception was:' " + e.message + "'")
             deposit_date = None
-        try:
-            deposit_amount = locale.atof(cell_list[1].value[1:])
-            return {MintSpread.deposit_date:deposit_date,
-                    MintSpread.deposit_amount:deposit_amount,
-                    MintSpread.deposit_account:cell_list[2].value}
-        except:
-            self.logger.critical("Could not parse " + str(cell_list) + " from Google sheet '" +
-                                 self.sheet_name + "'")
-        return None
+        if deposit_date is None:
+            deposit_amount = None
+        else:
+            try:
+                amount_cell = worksheet.acell(amount_col + str(row))
+                deposit_amount = float(MintSpread.numbers.findall(amount_cell.value.replace(",", ""))[0])
+            except Exception as e:
+                self.logger.debug("Could not get deposit amount from cell [" + amount_col + ":" + str(row) + "]"
+                                  + "in sheet '" + worksheet.spreadsheet.title + "' on tab '" + worksheet.title
+                                  + "(not necessarily a problem, it could just be end of data)."
+                                  + "  Exception was:'" + e.message + "'")
+                deposit_amount = None
+        return deposit_amount, deposit_date
 
     def get_data(self, start_date):
         data = []
-        if self.worksheet.acell(MintSpread.date_col + "1").value == "Date" and \
-                        self.worksheet.acell(MintSpread.amount_col + "1").value == "Amount" and \
-                        self.worksheet.acell(MintSpread.account_col + "1").value == "Account":
-            row_count = 2
-            row = self.get_row(row_count)
-            while row is not None:
-                if start_date <= row[MintSpread.deposit_date] <= datetime.datetime.now():
-                    data.append(row)
+        for sheet in self.config.google_sheets:
+            self.logger.debug("Connecting to tab '" + sheet.tab_name + "', on sheet '" + sheet.sheet_name + "'")
+            worksheet = self.g_spread.open(sheet.sheet_name).worksheet(sheet.tab_name)
+            row_count = sheet.start_row
+            deposit_amount, deposit_date = self.get_row(row_count, sheet.amount_col, sheet.date_col, worksheet)
+            while deposit_date is not None and deposit_amount is not None:
+                if deposit_date > start_date:
+                    data.append({
+                        "deposit_date":deposit_date,
+                        "deposit_amount":deposit_amount,
+                        "deposit_account":sheet.deposit_account,
+                        "sheet_name":sheet.sheet_name,
+                        "row":str(row_count)
+                    })
                 row_count += 1
-                row = self.get_row(row_count)
+                deposit_amount, deposit_date = self.get_row(row_count, sheet.amount_col, sheet.date_col, worksheet)
         return data
 
 
 def main():
     config = MintConfigFile("home.ini")
     mint_spread = MintSpread(config)
-    start_date = datetime.datetime.strptime('02122016', "%d%m%Y")
-    mint_spread.get_data(start_date)
-
+    start_date = datetime.datetime.strptime('02/02/2016', "%d/%m/%Y")
+    data = mint_spread.get_data(start_date)
+    for d in data:
+        config.logger.debug(d)
 
 if __name__ == "__main__":
     main()

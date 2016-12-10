@@ -7,6 +7,7 @@ from operator import itemgetter
 import datetime
 from itertools import tee, chain, izip, islice
 from mintCheck import MintCheck
+from datetime import datetime, date, time, timedelta
 
 BORDER_STYLE = "border-bottom:1px solid black"
 
@@ -17,7 +18,7 @@ class PrettyPrint:
         self.accounts = accounts
         self.transactions = transactions
         self.start_date = start_date
-        self.now = datetime.datetime.now()
+        self.now = datetime.combine(date.today(), time())
         self.doc = None
         self.logger = logger
 
@@ -89,7 +90,7 @@ class PrettyPrint:
                             tags.td(total_field, align="right", style=border)
         return debit_accounts_html
 
-    def create_activity(self, start_date, user, handled_accounts, user_accounts, now):
+    def create_activity(self, start_date, user, handled_accounts, user_accounts):
         bad_transactions = []
         transactions = []
         activity_html = tags.html()
@@ -114,7 +115,7 @@ class PrettyPrint:
                             account_message += " credit card"
                             next_payment_date = self.config.get_next_payment_date(account_name, mint_account["dueDate"])
                             next_payment_amount = mint_account["dueAmt"]
-                            trigger_date = now + datetime.timedelta(days=-self.config.past_due_days_before)
+                            trigger_date = self.now + timedelta(days=-self.config.past_due_days_before)
                             if next_payment_date is not None and next_payment_date <= trigger_date \
                                     and next_payment_amount > 0:
                                 fg_color = self.config.past_due_fg_color
@@ -386,7 +387,6 @@ class PrettyPrint:
     def send_data(self, frequency):
         self.logger.debug("starting send_data")
         user_accounts = {}
-        now = datetime.datetime.now()
         for user in self.config.users:
             handled_accounts = []
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
@@ -419,7 +419,7 @@ class PrettyPrint:
                             balance_warnings.append(t)
             if start_date is not None:
                 activity_html, transactions, bad_transactions = \
-                    self.create_activity(start_date, user, handled_accounts, user_accounts, now)
+                    self.create_activity(start_date, user, handled_accounts, user_accounts)
                 balance_warnings_html = self.create_balance_warnings(balance_warnings, user)
                 fees_html = self.get_fees(bad_transactions, user)
                 accounts_html, accounts, debit_accounts, missing_debit_accounts = self.get_accounts(user)

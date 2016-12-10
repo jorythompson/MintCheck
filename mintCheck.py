@@ -12,6 +12,7 @@ from emailSender import EmailSender
 from random import randint
 import time
 
+# from datetime import datetime, date, time
 ########################################################################################################################
 # put a script into /etc/cron.daily (or under /etc/cron.X) and run the following to verify:
 # run-parts --test /etc/cron.daily
@@ -27,7 +28,7 @@ class MintCheck:
         self.config = MintConfigFile(self.args.config, test_email=self.args.validate_emails,
                                      validate=self.args.validate_ini)
         self.logger = self.config.logger
-        self.now = datetime.datetime.now()
+        self.now = datetime.datetime.combine(datetime.date.today(), datetime.time())
         self.logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
 
     def connect(self):
@@ -83,9 +84,12 @@ class MintCheck:
                             help='Indicates MintCheck is running live and should sleep a random period of time before '
                                  'hitting Mint.com.  It also refreshes Mint and sleeps for 15 minutes while Mint '
                                  'updates itself.')
-        parser.add_argument('--config', required=True, help='Configuration file containing your username, password, and mint cookie')
-        parser.add_argument('--validate_ini', action="store_true", default=False, help='Validates the input configuration file')
-        parser.add_argument('--validate_emails',  action="store_true", default=False, help='Validates sending emails to all users in the configuration file')
+        parser.add_argument('--config', required=True,
+                            help='Configuration file containing your username, password, and mint cookie')
+        parser.add_argument('--validate_ini', action="store_true", default=False,
+                            help='Validates the input configuration file')
+        parser.add_argument('--validate_emails',  action="store_true", default=False,
+                            help='Validates sending emails to all users in the configuration file')
         return parser.parse_args()
 
     @staticmethod
@@ -143,17 +147,18 @@ def main():
             if mint_check.args.live:
                 sleep_time = randint(0, 60 * mint_check.config.general_sleep)
                 mint_check.logger.info("Waiting a random time so we don't connect to Mint at the same time every day."
-                                       "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') +
-                                       " for " +
-                                        datetime.datetime.fromtimestamp(sleep_time).strftime(
-                                            '%M minutes and %S seconds') + ", waking at " +
-                                        (datetime.datetime.now() +
-                                         datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
+                                       + "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S')
+                                       + " for "
+                                       + datetime.datetime.fromtimestamp(sleep_time).
+                                       strftime('%M minutes and %S seconds')
+                                       + ", waking at " + (datetime.datetime.now()
+                                                           + datetime.timedelta(seconds=sleep_time)).
+                                       strftime('%H:%M:%S'))
                 time.sleep(sleep_time)
             logger = mint_check.logger
             mint_check.collect_and_send()
             break
-        except Exception as (e):
+        except:
             if logger is not None:
                 logger.critical("Exception caught!  Tried " + str(count) + " times.")
                 type_, value_, traceback_ = sys.exc_info()
