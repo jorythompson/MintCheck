@@ -11,6 +11,8 @@ from mintConfigFile import MintConfigFile
 from emailSender import EmailSender
 from random import randint
 import time
+import logging
+
 
 # from datetime import datetime, date, time
 ########################################################################################################################
@@ -37,7 +39,7 @@ class MintCheck:
 
     def _get_data(self, start_date):
         self.logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
-        if self.config.debug_download:
+        if self.config.debug_mint_download:
             self.logger.debug("Connecting to Mint...")
             mint = self.connect()
             if self.args.live:
@@ -60,11 +62,11 @@ class MintCheck:
             self.mint_transactions = mintObjects.MintTransactions(
                 mint.get_transactions_json(include_investment=False, skip_duplicates=self.config.mint_remove_duplicates,
                                            start_date=start_date.strftime('%m/%d/%y')), self.logger)
-            self.logger.debug("pickling...")
-            self.pickle()
+            self.logger.debug("pickling mint objects...")
+            self.pickle_mint()
         else:
-            self.logger.debug("unpicking...")
-            self.unpickle()
+            self.logger.debug("unpicking mint objects...")
+            self.unpickle_mint()
             if self.config.debug_debugging:
                 self.accounts.dump(self.logger)
                 self.mint_transactions.dump(self.logger)
@@ -124,19 +126,17 @@ class MintCheck:
                                                 self.logger)
                 report.send_data(frequencies_needed)
 
-    def pickle(self):
-        with open(self.config.debug_pickle_file, 'wb') as handle:
-            # cPickle.dump(self.budgets, handle)
-            cPickle.dump(self.accounts, handle)
-            cPickle.dump(self.mint_transactions, handle)
-            # cPickle.dump(self.net_worth, handle)
+    def pickle_mint(self):
+        if self.config.debug_mint_pickle_file is not None:
+            with open(self.config.debug_mint_pickle_file, 'wb') as handle:
+                cPickle.dump(self.accounts, handle)
+                cPickle.dump(self.mint_transactions, handle)
 
-    def unpickle(self):
-        with open(self.config.debug_pickle_file, 'rb') as handle:
-            # self.budgets = cPickle.load(handle)
-            self.accounts = cPickle.load(handle)
-            self.mint_transactions = cPickle.load(handle)
-            # self.net_worth = cPickle.load(handle)
+    def unpickle_mint(self):
+        if self.config.debug_mint_pickle_file is not None:
+            with open(self.config.debug_mint_pickle_file, 'rb') as handle:
+                self.accounts = cPickle.load(handle)
+                self.mint_transactions = cPickle.load(handle)
 
 
 def main():
@@ -159,16 +159,16 @@ def main():
             mint_check.collect_and_send()
             break
         except:
-            if logger is not None:
-                logger.critical("Exception caught!  Tried " + str(count) + " times.")
-                type_, value_, traceback_ = sys.exc_info()
-                traceback.print_exc()
-                tb = traceback.format_exception(type_, value_, traceback_)
-                for line in tb:
-                    logger.critical(line)
+            if logger is None:
+                logger = logging.getLogger(__name__)
+            logger.critical("Exception caught!  Tried " + str(count) + " times.")
+            type_, value_, traceback_ = sys.exc_info()
+            traceback.print_exc()
+            tb = traceback.format_exception(type_, value_, traceback_)
+            for line in tb:
+                logger.critical(line)
             if count >= 4:
-                if logger is not None:
-                    logger.critical("Last exception follows:")
+                logger.critical("Last exception follows:")
                 type_, value_, traceback_ = sys.exc_info()
                 traceback.print_exc()
                 message = "<html>"
@@ -176,8 +176,7 @@ def main():
                 tb = traceback.format_exception(type_, value_, traceback_)
                 for line in tb:
                     message += line + "<br>"
-                    if logger is not None:
-                        logger.critical(line)
+                    logger.critical(line)
                 message += "\n Log information:\n"
                 with open(mint_check.config.general_log_file, 'r') as f:
                     data = f.read().replace("\n", "<br>")
