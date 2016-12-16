@@ -12,7 +12,7 @@ from emailSender import EmailSender
 from random import randint
 import time
 import logging
-
+from mintSheets import MintSheet
 
 # from datetime import datetime, date, time
 ########################################################################################################################
@@ -122,9 +122,11 @@ class MintCheck:
                                                      self.config.general_month_start, frequencies_needed)
             if start_date is not None:
                 self._get_data(start_date)
-                report = mintReport.PrettyPrint(self.accounts, self.mint_transactions, self.config, start_date,
-                                                self.logger)
-                report.send_data(frequencies_needed)
+                mint_sheet = MintSheet(self.config, start_date)
+
+                report = mintReport.PrettyPrint(self.accounts, self.mint_transactions, mint_sheet,
+                                                self.config, start_date, self.logger)
+                report.send_data()
 
     def pickle_mint(self):
         if self.config.debug_mint_pickle_file is not None:

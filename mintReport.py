@@ -13,10 +13,11 @@ BORDER_STYLE = "border-bottom:1px solid black"
 
 
 class PrettyPrint:
-    def __init__(self, accounts, transactions, config, start_date, logger):
+    def __init__(self, accounts, transactions, sheets, config, start_date, logger):
         self.config = config
         self.accounts = accounts
         self.transactions = transactions
+        self.sheets = sheets
         self.start_date = start_date
         self.now = datetime.combine(date.today(), time())
         self.doc = None
@@ -45,12 +46,11 @@ class PrettyPrint:
         return sorted(items, cmp=comparator)
 
     def create_debit_accounts(self, debit_accounts, missing_debit_accounts):
-        debit_accounts_html = ""
+        debit_accounts_html = tags.html()
         if len(debit_accounts) > 0 or len(missing_debit_accounts) > 0:
             sorted_debit_accounts = PrettyPrint.multi_key_sort(debit_accounts,
                                                                ["mint next payment date", "mint paid from account"])
             self.logger.info("assembling debit account list")
-            debit_accounts_html = tags.html()
             with debit_accounts_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Required Balances in Debit Accounts Due Soon", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
@@ -72,8 +72,8 @@ class PrettyPrint:
                             date_field = ""
                             border = None
                             if next_iterable is None or (next_iterable["debit account"] is None or (
-                                            next_iterable["debit account"] != debit_account["debit account"] \
-                                            or next_iterable["mint next payment date"] != debit_account[
+                                            next_iterable["debit account"] != debit_account["debit account"]
+                                    or next_iterable["mint next payment date"] != debit_account[
                                         "mint next payment date"])):
                                 account_field = debit_account["mint paid from account"]
                                 total_field = locale.currency(total, grouping=True)
@@ -88,6 +88,9 @@ class PrettyPrint:
                                 locale.currency(debit_account["mint credit account"]["currentBalance"], grouping=True),
                                 align="right", style=border)
                             tags.td(total_field, align="right", style=border)
+        else:
+            with debit_accounts_html.add(tags.body()).add(tags.div(id='content')):
+                tags.h1("No Required Balances For This Period", align="center")
         return debit_accounts_html
 
     def create_activity(self, start_date, user, handled_accounts, user_accounts):
@@ -150,7 +153,7 @@ class PrettyPrint:
                         except KeyError:
                             renamed_account = account_name
                         transactions, total = self.transactions.get_transactions(fi, account_name, start_date)
-                        tags.h2(renamed_account + " has a balance of " +
+                        tags.h3(renamed_account + " has a balance of " +
                                 locale.currency(mint_account["value"], grouping=True) +
                                 ".  Total transactions for this report is " +
                                 locale.currency(total, grouping=True) + ".",
@@ -194,8 +197,8 @@ class PrettyPrint:
         return activity_html, transactions, bad_transactions
 
     def create_balance_warnings(self, balance_warnings, user):
+        balance_warnings_html = tags.html()
         if len(balance_warnings) > 0:
-            balance_warnings_html = tags.html()
             self.logger.info("assembling balance warnings")
             with balance_warnings_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Accounts With Balance Alerts", align="center")
@@ -243,13 +246,14 @@ class PrettyPrint:
                                 due_date = due_date.strftime("%a, %b %d")
                             tags.td(due_date)
         else:
-            balance_warnings_html = ""
+            with balance_warnings_html.add(tags.body()).add(tags.div(id='content')):
+                tags.h1("No Accounts With Balance Alerts For This Period", align="center")
         return balance_warnings_html
 
     def get_fees(self, bad_transactions, user):
+        fees_html = tags.html()
         if len(bad_transactions) > 0:
             self.logger.info("assembling bad transactions")
-            fees_html = tags.html()
             with fees_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Flagged Transactions", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
@@ -289,7 +293,8 @@ class PrettyPrint:
                                 tags.td(amount, style="text-align:right")
                                 tags.td("")
         else:
-            fees_html = ""
+            with fees_html.add(tags.body()).add(tags.div(id='content')):
+                tags.h1("No Flagged Transactions For This Period", align="center")
         return fees_html
 
     def get_accounts(self, user):
@@ -384,11 +389,44 @@ class PrettyPrint:
             accounts_html = ""
         return accounts_html, accounts, debit_accounts, missing_debit_accounts
 
-    def send_data(self, frequency):
+    def create_deposit_warnings(self, user):
+        sheets = self.sheets.get_missing_deposits(self.transactions, user)
+        deposit_warnings_html = tags.html()
+        if len(sheets) > 0:
+            self.logger.info("assembling missing deposits")
+            with deposit_warnings_html.add(tags.body()).add(tags.div(id='content')):
+                tags.h1("Managed Deposits", align="center")
+                with tags.table(rules="cols", frame="box", align="center"):
+                    with tags.thead(style=BORDER_STYLE):
+                        tags.th("Reference")
+                        tags.th("Deposit Account")
+                        tags.th("Expected Deposit Date")
+                        tags.th("Actual Deposit Date")
+                        tags.th("Amount", colspan="2", style=BORDER_STYLE)
+                    for deposit in sheets:
+                        if deposit["actual_deposit_date"] is None:
+                            color = self.config.sheets_unpaid_color
+                            actual_deposit_date = "NONE"
+                        else:
+                            color = self.config.sheets_paid_color
+                            actual_deposit_date = deposit["actual_deposit_date"].strftime("%a, %b %d")
+                        with tags.tr(style="color:" + color):
+                            tags.td(deposit["billing_account"])
+                            tags.td(deposit["deposit_account"])
+                            tags.td(deposit["expected_deposit_date"].strftime("%a, %b %d"))
+                            tags.td(actual_deposit_date)
+                            tags.td(locale.currency(deposit["deposit_amount"], grouping=True))
+        else:
+            with deposit_warnings_html.add(tags.body()).add(tags.div(id='content')):
+                tags.h1("No Managed Deposits For This Period", align="center")
+        return deposit_warnings_html
+
+    def send_data(self):
         self.logger.debug("starting send_data")
         user_accounts = {}
         for user in self.config.users:
             handled_accounts = []
+            deposit_warnings_html = self.create_deposit_warnings(user)
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
                 continue
             self.logger.info("handling user:" + user.name)
@@ -425,12 +463,14 @@ class PrettyPrint:
                 accounts_html, accounts, debit_accounts, missing_debit_accounts = self.get_accounts(user)
                 debit_accounts_html = self.create_debit_accounts(debit_accounts, missing_debit_accounts)
                 message = ""
-                if len(debit_accounts) > 0:
+                if debit_accounts_html is not None:
                     message += str(debit_accounts_html)
-                if len(balance_warnings) > 0:
+                if balance_warnings is not None:
                     message += str(balance_warnings_html)
-                if len(bad_transactions) > 0:
+                if fees_html is not None:
                     message += str(fees_html)
+                if deposit_warnings_html is not None:
+                    message += str(deposit_warnings_html)
                 if len(transactions) > 0:
                     message += str(activity_html)
                 if len(accounts) > 0:
@@ -445,11 +485,12 @@ class PrettyPrint:
                     tags.h4("This " + report_frequency + " report was prepared for " + user.name
                             + " on " + datetime.now().strftime("%m/%d/%y at %I:%M:%S %p")
                             + " starting on " + start_date.strftime("%m/%d/%y at %I:%M:%S %p"))
-                    raw_html = 'Colors are as follows:<br>Account Types:<font color="' + \
-                               self.config.account_type_credit_fg + \
-                               '">Credit cards</font>, ' + \
-                               '<font color="' + self.config.account_type_bank_fg + \
-                               '">Bank Accounts</font>'
+                    raw_html = 'Colors are as follows:<br>' \
+                               + 'Account Types:<font color="' + self.config.account_type_credit_fg + '">' \
+                               + 'Credit cards</font>, ' + '<font color="' + self.config.account_type_bank_fg + '">' \
+                               + 'Bank Accounts</font>, ' + '<font color="' + self.config.sheets_paid_color + '">' \
+                               + 'Verified Deposits</font>, ' + '<font color="' + self.config.sheets_unpaid_color + '">' \
+                               + 'Missing Deposits</font>'
                     raw_html += "<br>Keywords: "
                     for color in self.config.color_tags:
                         for keyword in self.config.color_tags[color]:

@@ -73,6 +73,8 @@ SHEETS_DATE_COL = "date_col"
 SHEETS_START_ROW = "start_row"
 SHEETS_DEPOSIT_ACCOUNT = "deposit_account"
 SHEETS_TAB_NAMES = "tab_names"
+SHEETS_PAID_COLOR = "paid_color"
+SHEETS_UNPAID_COLOR = "unpaid_color"
 
 BALANCE_WARNINGS_TITLE = "balance warnings"
 BILL_DATES_TITLE = "bill dates"
@@ -120,6 +122,7 @@ class BalanceWarning:
 
 class GoogleSheet:
     def __init__(self, section, default_day_error, config):
+        self.billing_account = section
         self.sheet_name = config.config.get(section, SHEETS_NAME)
         self.amount_col = config.config.get(section, SHEETS_AMOUNT_COL)
         self.date_col = config.config.get(section, SHEETS_DATE_COL)
@@ -137,6 +140,7 @@ class GoogleSheet:
 
     def dump(self):
         dump_config_value(SHEETS_TITLE)
+        dump_config_value(SHEETS_TITLE, self.billing_account)
         dump_config_value(SHEETS_NAME, self.sheet_name)
         dump_config_value(SHEETS_AMOUNT_COL, self.amount_col)
         dump_config_value(SHEETS_DATE_COL, self.date_col)
@@ -409,6 +413,16 @@ class MintConfigFile:
         except:
             self.sheets_day_error = 3
             missing_entry(SHEETS_TITLE, SHEETS_DAY_ERROR, file_name, self.logger, self.sheets_day_error)
+        try:
+            self.sheets_paid_color = self.config.get(SHEETS_TITLE, SHEETS_PAID_COLOR)
+        except:
+            self.sheets_paid_color = "blue"
+            missing_entry(SHEETS_TITLE, SHEETS_PAID_COLOR, file_name, self.logger, self.sheets_paid_color)
+        try:
+            self.sheets_unpaid_color = self.config.get(SHEETS_TITLE, SHEETS_UNPAID_COLOR)
+        except:
+            self.sheets_unpaid_color = "purple"
+            missing_entry(SHEETS_TITLE, SHEETS_UNPAID_COLOR, file_name, self.logger, self.sheets_unpaid_color)
         self.users = []
         self.google_sheets = []
 
@@ -418,7 +432,10 @@ class MintConfigFile:
                     self.users.append(MintUser(section, self))
                 elif (section in self.general_google_sheets or "all" in self.general_google_sheets) \
                         and self.sheets_json_file is not None:
-                    self.google_sheets.append(GoogleSheet(section, self.sheets_day_error, self))
+                    try:
+                        self.google_sheets.append(GoogleSheet(section, self.sheets_day_error, self))
+                    except:
+                        self.logger.debug("skipping Sheet section " + section + " in configuration file")
 
         if validate or test_email:
             # mint connection block

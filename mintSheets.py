@@ -5,20 +5,20 @@ from dateutil import parser
 from mintConfigFile import MintConfigFile
 from oauth2client.service_account import ServiceAccountCredentials
 import re
-import logging
 
 
 class MintSheet:
     numbers = re.compile('\d+(?:\.\d+)?')
 
-    def __init__(self, config):
+    def __init__(self, config, start_date):
         scope = ['https://spreadsheets.google.com/feeds']
         credentials = ServiceAccountCredentials.from_json_keyfile_name(config.sheets_json_file, scope)
         self.config = config
         self.g_spread = gspread.authorize(credentials)
         self.logger = config.logger
+        self.sheet_data = self._get_data(start_date)
 
-    def get_row(self, row, amount_col, date_col, worksheet):
+    def _get_row(self, row, amount_col, date_col, worksheet):
         self.logger.debug("getting row #" + str(row) + " on tab '" + worksheet.title
                           + "', on sheet '" + worksheet.spreadsheet.title + "'")
         try:
@@ -44,7 +44,22 @@ class MintSheet:
                 deposit_amount = None
         return deposit_amount, deposit_date
 
-    def get_data(self, start_date):
+    def get_missing_deposits(self, mint_transactions, user):
+        rtn = []
+        for data in self.sheet_data:
+            data["actual_deposit_date"] = None
+            rtn.append(data)
+            for transaction in mint_transactions.transactions:
+                if transaction["account"] == data["deposit_account"] \
+                        and transaction["amount"] == data["deposit_amount"] \
+                        and ("all" in user.accounts or transaction["account"] in user.accounts):
+                    if data["expected_deposit_date"] + datetime.timedelta(data["date_error"]) > transaction["date"] \
+                            > data["expected_deposit_date"] - datetime.timedelta(data["date_error"]):
+                        data["actual_deposit_date"] = transaction["date"]
+                        break
+        return rtn
+
+    def _get_data(self, start_date):
         data = []
         if self.config.debug_sheets_download:
             for sheet in self.config.google_sheets:
@@ -53,11 +68,13 @@ class MintSheet:
                     try:
                         worksheet = self.g_spread.open(sheet.sheet_name).worksheet(tab_name)
                         row_count = sheet.start_row
-                        deposit_amount, deposit_date = self.get_row(row_count, sheet.amount_col, sheet.date_col, worksheet)
+                        deposit_amount, deposit_date = \
+                            self._get_row(row_count, sheet.amount_col, sheet.date_col, worksheet)
                         while deposit_date is not None and deposit_amount is not None:
                             if deposit_date > start_date:
                                 data.append({
-                                    "deposit_date": deposit_date,
+                                    "billing_account": sheet.billing_account,
+                                    "expected_deposit_date": deposit_date,
                                     "date_error": sheet.day_error,
                                     "deposit_amount": deposit_amount,
                                     "deposit_account": sheet.deposit_account,
@@ -65,7 +82,8 @@ class MintSheet:
                                     "row": str(row_count)
                                 })
                             row_count += 1
-                            deposit_amount, deposit_date = self.get_row(row_count, sheet.amount_col, sheet.date_col, worksheet)
+                            deposit_amount, deposit_date = \
+                                self._get_row(row_count, sheet.amount_col, sheet.date_col, worksheet)
                     except:
                         self.logger.info("Tab " + tab_name + " on sheet " + sheet.sheet_name
                                          + " does not exist... skipping")
@@ -81,11 +99,17 @@ class MintSheet:
 
 def main():
     config = MintConfigFile("home.ini")
-    mint_spread = MintSheet(config)
-    start_date = datetime.datetime.strptime('02/02/2016', "%d/%m/%Y")
-    data = mint_spread.get_data(start_date)
-    for d in data:
-        config.logger.debug(d)
+    start_date = datetime.datetime.strptime('08/01/2016', "%d/%m/%Y")
+    mint_spread = MintSheet(config, start_date)
+    with open(config.debug_mint_pickle_file, 'rb') as handle:
+        cPickle.load(handle)
+        mint_transactions = cPickle.load(handle)
+
+    for user in config.users:
+        if user.name == "Jordan":
+            missing_transactions = mint_spread.get_missing_deposits(mint_transactions, user)
+            for missing in missing_transactions:
+                print missing
 
 if __name__ == "__main__":
     main()
