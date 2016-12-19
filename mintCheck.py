@@ -143,7 +143,7 @@ class MintCheck:
 
 def main():
     mint_check = MintCheck()
-    logger = None
+    logger = mint_check.logger
     for count in range(1, 5):
         try:
             if mint_check.args.live:

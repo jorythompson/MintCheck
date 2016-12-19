@@ -5,6 +5,7 @@ from dateutil import parser
 from mintConfigFile import MintConfigFile
 from oauth2client.service_account import ServiceAccountCredentials
 import re
+import string
 
 
 class MintSheet:
@@ -18,30 +19,36 @@ class MintSheet:
         self.logger = config.logger
         self.sheet_data = self._get_data(start_date)
 
-    def _get_row(self, row, amount_col, date_col, worksheet):
-        self.logger.debug("getting row #" + str(row) + " on tab '" + worksheet.title
-                          + "', on sheet '" + worksheet.spreadsheet.title + "'")
+    @staticmethod
+    def col2num(col):
+        num = 0
+        for c in col:
+            if c in string.ascii_letters:
+                num = num * 26 + (ord(c.upper()) - ord('A')) + 1
+        return num
+
+    @staticmethod
+    def get_row(logger, row, amount_col, date_col, worksheet):
+        logger.debug("getting row #" + str(row) + " on tab '" + worksheet.title
+                     + "', on sheet '" + worksheet.spreadsheet.title + "'")
         try:
             date_cell = worksheet.acell(date_col + str(row))
             deposit_date = parser.parse(date_cell.value)
         except Exception as e:
-            self.logger.debug("Could not get deposit amount from cell [" + date_col + ":" + str(row) + "]"
-                              + "in sheet '" + worksheet.spreadsheet.title + "' on tab '" + worksheet.title
-                              + "(not necessarily a problem, it could just be end of data)."
-                              + "  Exception was:' " + e.message + "'")
+            logger.debug("Could not get deposit date from cell [" + date_col + ":" + str(row) + "]"
+                         + "in sheet '" + worksheet.spreadsheet.title + "' on tab '" + worksheet.title
+                         + "(not necessarily a problem, it could just be end of data)."
+                         + "  Exception was:' " + e.message + "'")
             deposit_date = None
-        if deposit_date is None:
+        try:
+            amount_cell = worksheet.acell(amount_col + str(row))
+            deposit_amount = float(MintSheet.numbers.findall(amount_cell.value.replace(",", ""))[0])
+        except Exception as e:
+            logger.debug("Could not get deposit amount from cell [" + amount_col + ":" + str(row) + "]"
+                         + "in sheet '" + worksheet.spreadsheet.title + "' on tab '" + worksheet.title
+                         + "(not necessarily a problem, it could just be end of data)."
+                         + "  Exception was:'" + e.message + "'")
             deposit_amount = None
-        else:
-            try:
-                amount_cell = worksheet.acell(amount_col + str(row))
-                deposit_amount = float(MintSheet.numbers.findall(amount_cell.value.replace(",", ""))[0])
-            except Exception as e:
-                self.logger.debug("Could not get deposit amount from cell [" + amount_col + ":" + str(row) + "]"
-                                  + "in sheet '" + worksheet.spreadsheet.title + "' on tab '" + worksheet.title
-                                  + "(not necessarily a problem, it could just be end of data)."
-                                  + "  Exception was:'" + e.message + "'")
-                deposit_amount = None
         return deposit_amount, deposit_date
 
     def get_missing_deposits(self, mint_transactions, user):
@@ -67,23 +74,24 @@ class MintSheet:
                     self.logger.debug("Connecting to tab '" + tab_name + "', on sheet '" + sheet.sheet_name + "'")
                     try:
                         worksheet = self.g_spread.open(sheet.sheet_name).worksheet(tab_name)
-                        row_count = sheet.start_row
-                        deposit_amount, deposit_date = \
-                            self._get_row(row_count, sheet.amount_col, sheet.date_col, worksheet)
-                        while deposit_date is not None and deposit_amount is not None:
-                            if deposit_date > start_date:
-                                data.append({
-                                    "billing_account": sheet.billing_account,
-                                    "expected_deposit_date": deposit_date,
-                                    "date_error": sheet.day_error,
-                                    "deposit_amount": deposit_amount,
-                                    "deposit_account": sheet.deposit_account,
-                                    "sheet_name": sheet.sheet_name,
-                                    "row": str(row_count)
-                                })
+                        row_count = sheet.start_row - 1
+                        while True:
                             row_count += 1
                             deposit_amount, deposit_date = \
-                                self._get_row(row_count, sheet.amount_col, sheet.date_col, worksheet)
+                                MintSheet.get_row(self.logger, row_count, sheet.amount_col, sheet.date_col, worksheet)
+                            if deposit_date is None and deposit_amount is None:  # both are None
+                                break
+                            elif deposit_date is not None and deposit_amount is not None:  # neither is None
+                                if deposit_date > start_date:
+                                    data.append({
+                                        "billing_account": sheet.billing_account,
+                                        "expected_deposit_date": deposit_date,
+                                        "date_error": sheet.day_error,
+                                        "deposit_amount": deposit_amount,
+                                        "deposit_account": sheet.deposit_account,
+                                        "sheet_name": sheet.sheet_name,
+                                        "row": str(row_count)
+                                    })
                     except:
                         self.logger.info("Tab " + tab_name + " on sheet " + sheet.sheet_name
                                          + " does not exist... skipping")

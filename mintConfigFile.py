@@ -8,6 +8,7 @@ import platform
 import sys
 from emailSender import EmailSender
 import datetime
+import os
 from dateutil.relativedelta import relativedelta
 
 # mint connection block
@@ -16,7 +17,7 @@ MINT_USER_USERNAME = "username"
 MINT_USER_PASSWORD = "password"
 MINT_COOKIE = "ius_session_cookie"
 MINT_COOKIE_2 = "thx_guid_cookie"
-MINT_REMOVE_DUPLICATES ="remove_duplicates"
+MINT_REMOVE_DUPLICATES = "remove_duplicates"
 MINT_IGNORE_ACCOUNTS = "ignore_accounts_containing"
 
 # general block
@@ -212,6 +213,7 @@ class MintConfigFile:
         self.config = ConfigParser.ConfigParser()
         self.config.optionxform = str
         self.config.read(file_name)
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
 
         try:
             level = self.config.get(GENERAL_TITLE, GENERAL_LOG_LEVEL)
@@ -219,9 +221,9 @@ class MintConfigFile:
             level = logging.WARN
             missing_entry(GENERAL_TITLE, GENERAL_LOG_LEVEL, file_name, None, level)
         try:
-            self.general_log_file = self.config.get(GENERAL_TITLE, GENERAL_LOG_FILE)
+            self.general_log_file = os.path.join(self.current_dir, self.config.get(GENERAL_TITLE, GENERAL_LOG_FILE))
         except Exception:
-            self.general_log_file = "MintCheck.log"
+            self.general_log_file = os.path.join(self.current_dir, "MintCheck.log")
             missing_entry(GENERAL_TITLE, GENERAL_LOG_FILE, file_name, None, self.general_log_file)
         try:
             log_console = self.config.getboolean(GENERAL_TITLE, GENERAL_LOG_CONSOLE)
@@ -353,12 +355,14 @@ class MintConfigFile:
             self.debug_send_email = True
             missing_entry(DEBUG_TITLE, DEBUG_SEND_EMAIL, file_name, self.logger, self.debug_send_email)
         try:
-            self.debug_mint_pickle_file = self.config.get(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE)
+            self.debug_mint_pickle_file = os.path.join(self.current_dir,
+                                                       self.config.get(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE))
         except Exception:
             self.debug_mint_pickle_file = None
             missing_entry(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE, file_name, self.logger, "")
         try:
-            self.debug_sheets_pickle_file = self.config.get(DEBUG_TITLE, DEBUG_SHEETS_PICKLE_FILE)
+            self.debug_sheets_pickle_file = os.path.join(self.current_dir,
+                                                         self.config.get(DEBUG_TITLE, DEBUG_SHEETS_PICKLE_FILE))
         except Exception:
             self.debug_sheets_pickle_file = None
             missing_entry(DEBUG_TITLE, DEBUG_SHEETS_PICKLE_FILE, file_name, self.logger, "")
@@ -404,7 +408,7 @@ class MintConfigFile:
 
         self.email_connection = EmailConnection(self.config)
         try:
-            self.sheets_json_file = self.config.get(SHEETS_TITLE, SHEETS_JSON_FILE)
+            self.sheets_json_file = os.path.join(self.current_dir, self.config.get(SHEETS_TITLE, SHEETS_JSON_FILE))
         except:
             missing_entry(SHEETS_TITLE, SHEETS_JSON_FILE, file_name, self.logger, "")
             self.sheets_json_file = None
