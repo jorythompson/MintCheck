@@ -71,7 +71,8 @@ class MintSheet:
         if self.config.debug_sheets_download:
             for sheet in self.config.google_sheets:
                 for tab_name in sheet.tab_names:
-                    self.logger.debug("Connecting to tab '" + tab_name + "', on sheet '" + sheet.sheet_name + "'")
+                    self.logger.debug("Connecting to tab '" + tab_name + "', on sheet '" + sheet.sheet_name + "'"
+                                      + " for " + sheet.billing_account)
                     try:
                         worksheet = self.g_spread.open(sheet.sheet_name).worksheet(tab_name)
                         row_count = sheet.start_row - 1

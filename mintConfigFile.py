@@ -216,7 +216,7 @@ class MintConfigFile:
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
 
         try:
-            level = self.config.get(GENERAL_TITLE, GENERAL_LOG_LEVEL)
+            level = self.config.get(GENERAL_TITLE, GENERAL_LOG_LEVEL).upper()
         except Exception:
             level = logging.WARN
             missing_entry(GENERAL_TITLE, GENERAL_LOG_LEVEL, file_name, None, level)
@@ -374,7 +374,7 @@ class MintConfigFile:
         try:
             self.debug_sheets_download = self.config.getboolean(DEBUG_TITLE, DEBUG_SHEETS_DOWNLOAD)
         except Exception:
-            self.debug_sheets_download = False
+            self.debug_sheets_download = True
             missing_entry(DEBUG_TITLE, DEBUG_SHEETS_DOWNLOAD, file_name, self.logger, self.debug_sheets_download)
         try:
             self.debug_copy_admin = self.config.getboolean(DEBUG_TITLE, DEBUG_COPY_ADMIN)
