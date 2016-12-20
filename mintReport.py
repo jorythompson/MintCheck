@@ -13,12 +13,11 @@ BORDER_STYLE = "border-bottom:1px solid black"
 
 
 class PrettyPrint:
-    def __init__(self, accounts, transactions, sheets, config, start_date, logger):
+    def __init__(self, accounts, transactions, sheets, config, logger):
         self.config = config
         self.accounts = accounts
         self.transactions = transactions
         self.sheets = sheets
-        self.start_date = start_date
         self.now = datetime.combine(date.today(), time())
         self.doc = None
         self.logger = logger
@@ -99,8 +98,8 @@ class PrettyPrint:
         activity_html = tags.html()
         with activity_html.add(tags.body()).add(tags.div(id='content')):
             fis = self.transactions.get_financial_institutions(start_date)
-            fis_title_saved = False
             for fi in fis:
+                fis_title_saved = False
                 account_names = self.transactions.get_accounts(fi, start_date)
                 for account_name in account_names:
                     if self.config.mint_ignore_accounts not in account_name and \
@@ -115,15 +114,11 @@ class PrettyPrint:
                             fg_color = self.config.account_type_bank_fg
                             account_message += " is a bank account"
                         elif mint_account["accountType"] == "credit":
+                            fg_color = self.config.account_type_credit_fg
                             account_message += " credit card"
                             next_payment_date = self.config.get_next_payment_date(account_name, mint_account["dueDate"])
                             next_payment_amount = mint_account["dueAmt"]
                             trigger_date = self.now + timedelta(days=-self.config.past_due_days_before)
-                            if next_payment_date is not None and next_payment_date <= trigger_date \
-                                    and next_payment_amount > 0:
-                                fg_color = self.config.past_due_fg_color
-                            else:
-                                fg_color = self.config.account_type_credit_fg
                             if next_payment_date is None:
                                 next_payment_date = " on undetermined date"
                             else:
@@ -156,8 +151,8 @@ class PrettyPrint:
                         tags.h3(renamed_account + " has a balance of " +
                                 locale.currency(mint_account["value"], grouping=True) +
                                 ".  Total transactions for this report is " +
-                                locale.currency(total, grouping=True) + ".",
-                                style="color:" + fg_color)
+                                locale.currency(total, grouping=True) + ":",
+                                style="color:" + fg_color, align="center")
                         with tags.table(rules="cols", frame="box", align="center"):
                             with tags.thead(style=BORDER_STYLE):
                                 tags.th("Date")
@@ -255,7 +250,7 @@ class PrettyPrint:
         if len(bad_transactions) > 0:
             self.logger.info("assembling bad transactions")
             with fees_html.add(tags.body()).add(tags.div(id='content')):
-                tags.h1("Flagged Transactions", align="center")
+                tags.h1("Tagged Transactions", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
                     with tags.thead(style=BORDER_STYLE):
                         tags.th("Date")
@@ -389,6 +384,22 @@ class PrettyPrint:
             accounts_html = ""
         return accounts_html, accounts, debit_accounts, missing_debit_accounts
 
+    def create_debug_section(self):
+        debug_html = None
+        if not self.config.debug_send_email or not self.config.debug_mint_download \
+                or not self.config.debug_sheets_download:
+            debug_html = tags.html()
+            self.logger.info("assembling debug section")
+            with debug_html.add(tags.body()).add(tags.div(id='content')):
+                tags.h1("*** WARNING - DEBUG VALUES SET ***", align="center", style="color:red")
+                if not self.config.debug_send_email:
+                    tags.h3("Not sending emails", align="center", style="color:red")
+                if not self.config.debug_mint_download:
+                    tags.h3("Not downloading data from Mint", align="center", style="color:red")
+                if not self.config.debug_sheets_download:
+                    tags.h3("Not downloading data from Google sheets", align="center", style="color:red")
+        return debug_html
+
     def create_deposit_warnings(self, user):
         sheets = self.sheets.get_missing_deposits(self.transactions, user)
         deposit_warnings_html = tags.html()
@@ -463,6 +474,9 @@ class PrettyPrint:
                 accounts_html, accounts, debit_accounts, missing_debit_accounts = self.get_accounts(user)
                 debit_accounts_html = self.create_debit_accounts(debit_accounts, missing_debit_accounts)
                 message = ""
+                debug_html = self.create_debug_section()
+                if debug_html is not None:
+                    message += str(debug_html)
                 if debit_accounts_html is not None:
                     message += str(debit_accounts_html)
                 if balance_warnings is not None:
@@ -498,8 +512,9 @@ class PrettyPrint:
                     tags.div(raw(raw_html))
                 message = str(report_period_html) + message
                 if self.config.debug_save_html is not None:
-                    self.logger.debug("saving html file to " + self.config.debug_save_html)
-                    with open(self.config.debug_save_html, "w") as out_html:
+                    file_name = user.name + "_" +self.config.debug_save_html
+                    self.logger.debug("saving html file to " + file_name)
+                    with open(file_name, "w") as out_html:
                         out_html.write(message)
                 if self.config.debug_send_email:
                     email_sender = EmailSender(self.config.email_connection, self.logger)

@@ -98,11 +98,17 @@ class MintCheck:
     def get_start_date(now, week_start, month_start, frequencies_needed):
         start_date = None
         frequency = None
+        week_start = week_start.lower()
+        today = now.strftime("%A").lower()
         if (now.day == month_start) and ("monthly" in frequencies_needed):
             start_date = now + relativedelta(months=-1)
             frequency = "monthly"
-        elif now.strftime("%A").lower() == week_start.lower()\
-                and "weekly" in frequencies_needed:
+        elif week_start == today and "biweekly" in frequencies_needed \
+                and ((now.day>=month_start+7 and now.day<month_start+14)
+                     or (now.day>=month_start+21 and now.day<month_start+28)):
+            start_date = now + relativedelta(days=-14)
+            frequency = "biweekly"
+        elif today == week_start and "weekly" in frequencies_needed:
             start_date = now + relativedelta(days=-7)
             frequency = "weekly"
         elif "daily" in frequencies_needed:
@@ -118,14 +124,17 @@ class MintCheck:
                     frequencies_needed.append(frequency)
 
         if len(frequencies_needed) > 0:
+            max_day_error = 0
+            for sheet in self.config.google_sheets:
+                if sheet.day_error > max_day_error:
+                    max_day_error = sheet.day_error
             start_date, ignore = self.get_start_date(self.now, self.config.general_week_start,
                                                      self.config.general_month_start, frequencies_needed)
             if start_date is not None:
-                self._get_data(start_date)
+                self._get_data(start_date - datetime.timedelta(days=max_day_error))
                 mint_sheet = MintSheet(self.config, start_date)
-
                 report = mintReport.PrettyPrint(self.accounts, self.mint_transactions, mint_sheet,
-                                                self.config, start_date, self.logger)
+                                                self.config, self.logger)
                 report.send_data()
 
     def pickle_mint(self):

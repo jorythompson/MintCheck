@@ -38,7 +38,7 @@ USER_EMAIL = "email"
 USER_SUBJECT = "subject"
 USER_ACTIVE_ACCOUNTS = "active_accounts"
 USER_ACCOUNTS = "accounts"
-ALLOWED_USER_FREQUENCIES = ["daily", "weekly", "monthly"]
+ALLOWED_USER_FREQUENCIES = ["daily", "weekly", "monthly", "biweekly"]
 USER_FREQUENCY = "frequency"
 USER_RENAME_ACCOUNT = "rename_account"
 USER_RENAME_INSTITUTION = "rename_institution"
@@ -432,9 +432,12 @@ class MintConfigFile:
 
         for section in self.config.sections():
             if section not in SKIP_TITLES:
-                if section in self.general_users:
-                    self.users.append(MintUser(section, self))
-                elif (section in self.general_google_sheets or "all" in self.general_google_sheets) \
+                if section in self.general_users or "all" in self.general_users:
+                    try:
+                        self.users.append(MintUser(section, self))
+                    except:
+                        self.logger.debug("skipping Sheet section " + section + " in configuration file")
+                if (section in self.general_google_sheets or "all" in self.general_google_sheets) \
                         and self.sheets_json_file is not None:
                     try:
                         self.google_sheets.append(GoogleSheet(section, self.sheets_day_error, self))

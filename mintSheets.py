@@ -55,15 +55,20 @@ class MintSheet:
         rtn = []
         for data in self.sheet_data:
             data["actual_deposit_date"] = None
-            rtn.append(data)
+            appended = False
             for transaction in mint_transactions.transactions:
-                if transaction["account"] == data["deposit_account"] \
-                        and transaction["amount"] == data["deposit_amount"] \
-                        and ("all" in user.accounts or transaction["account"] in user.accounts):
-                    if data["expected_deposit_date"] + datetime.timedelta(data["date_error"]) > transaction["date"] \
-                            > data["expected_deposit_date"] - datetime.timedelta(data["date_error"]):
-                        data["actual_deposit_date"] = transaction["date"]
-                        break
+                if data["deposit_account"] == "Main Checking - 6042":
+                    pass
+                if "all" in user.accounts or data["deposit_account"] in user.accounts:
+                    if not appended:
+                        rtn.append(data)
+                        appended = True
+                    if transaction["account"] == data["deposit_account"] \
+                            and transaction["amount"] == data["deposit_amount"]:
+                        if data["expected_deposit_date"] + datetime.timedelta(data["date_error"]) >= transaction["date"] \
+                                >= data["expected_deposit_date"] - datetime.timedelta(data["date_error"]):
+                            data["actual_deposit_date"] = transaction["date"]
+                            break
         return rtn
 
     def _get_data(self, start_date):
@@ -83,7 +88,7 @@ class MintSheet:
                             if deposit_date is None and deposit_amount is None:  # both are None
                                 break
                             elif deposit_date is not None and deposit_amount is not None:  # neither is None
-                                if deposit_date > start_date:
+                                if deposit_date > start_date - datetime.timedelta(5):
                                     data.append({
                                         "billing_account": sheet.billing_account,
                                         "expected_deposit_date": deposit_date,
