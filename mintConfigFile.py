@@ -70,6 +70,7 @@ SHEETS_JSON_FILE = "json_file"
 SHEETS_DAY_ERROR = "max_day_error"
 SHEETS_NAME = "sheet_name"
 SHEETS_AMOUNT_COL = "amount_col"
+SHEETS_NOTES_COL = "notes_col"
 SHEETS_DATE_COL = "date_col"
 SHEETS_START_ROW = "start_row"
 SHEETS_DEPOSIT_ACCOUNT = "deposit_account"
@@ -126,6 +127,7 @@ class GoogleSheet:
         self.billing_account = section
         self.sheet_name = config.config.get(section, SHEETS_NAME)
         self.amount_col = config.config.get(section, SHEETS_AMOUNT_COL)
+        self.notes_col = config.config.get(section, SHEETS_NOTES_COL)
         self.date_col = config.config.get(section, SHEETS_DATE_COL)
         self.start_row = config.config.getint(section, SHEETS_START_ROW)
         self.deposit_account = config.config.get(section, SHEETS_DEPOSIT_ACCOUNT)
@@ -144,6 +146,7 @@ class GoogleSheet:
         dump_config_value(SHEETS_TITLE, self.billing_account)
         dump_config_value(SHEETS_NAME, self.sheet_name)
         dump_config_value(SHEETS_AMOUNT_COL, self.amount_col)
+        dump_config_value(SHEETS_NOTES_COL, self.notes_col)
         dump_config_value(SHEETS_DATE_COL, self.date_col)
         dump_config_value(SHEETS_START_ROW, self.start_row)
         dump_config_value(SHEETS_DEPOSIT_ACCOUNT, self.deposit_account)
