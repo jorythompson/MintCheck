@@ -32,6 +32,9 @@ GENERAL_USERS = "users"
 GENERAL_GOOGLE_SHEETS = "google_sheets"
 GENERAL_MAX_SLEEP = "max_sleep"
 GENERAL_EXCEPTIONS_TO = "exceptions_to"
+GENERAL_LOG_FOLDER = "log_folder"
+GENERAL_PICKLE_FOLDER = "pickle_folder"
+GENERAL_HTML_FOLDER = "html_folder"
 
 # USER block
 USER_EMAIL = "email"
@@ -49,7 +52,6 @@ DEBUG_TITLE = "debug"
 DEBUG_MINT_DOWNLOAD = "mint_download"
 DEBUG_SHEETS_DOWNLOAD = "sheets_download"
 DEBUG_MINT_PICKLE_FILE = "mint_pickle_file"
-DEBUG_SHEETS_PICKLE_FILE = "sheets_pickle_file"
 DEBUG_DEBUGGING = "debugging"
 DEBUG_COPY_ADMIN = "copy_admin"
 DEBUG_SAVE_HTML = "save_html"
@@ -74,7 +76,7 @@ SHEETS_NOTES_COL = "notes_col"
 SHEETS_DATE_COL = "date_col"
 SHEETS_START_ROW = "start_row"
 SHEETS_DEPOSIT_ACCOUNT = "deposit_account"
-SHEETS_TAB_NAMES = "tab_names"
+SHEETS_TAB_NAME = "tab_name"
 SHEETS_PAID_COLOR = "paid_color"
 SHEETS_UNPAID_COLOR = "unpaid_color"
 
@@ -132,9 +134,9 @@ class GoogleSheet:
         self.start_row = config.config.getint(section, SHEETS_START_ROW)
         self.deposit_account = config.config.get(section, SHEETS_DEPOSIT_ACCOUNT)
         try:
-            self.tab_names = ast.literal_eval("[" + config.config.get(section, SHEETS_TAB_NAMES) + "]")
+            self.tab_name = config.config.get(section, SHEETS_TAB_NAME)
         except:
-            missing_entry(section, SHEETS_TAB_NAMES, config.file_name, config.logger)
+            missing_entry(section, SHEETS_TAB_NAME, config.file_name, config.logger)
         try:
             self.day_error = config.config.getint(section, SHEETS_DAY_ERROR)
         except:
@@ -150,7 +152,7 @@ class GoogleSheet:
         dump_config_value(SHEETS_DATE_COL, self.date_col)
         dump_config_value(SHEETS_START_ROW, self.start_row)
         dump_config_value(SHEETS_DEPOSIT_ACCOUNT, self.deposit_account)
-        dump_config_value(SHEETS_TAB_NAMES, self.tab_names)
+        dump_config_value(SHEETS_TAB_NAME, self.tab_name)
         dump_config_value(SHEETS_DAY_ERROR, self.day_error)
 
 
@@ -224,10 +226,19 @@ class MintConfigFile:
             level = logging.WARN
             missing_entry(GENERAL_TITLE, GENERAL_LOG_LEVEL, file_name, None, level)
         try:
-            self.general_log_file = os.path.join(self.current_dir, self.config.get(GENERAL_TITLE, GENERAL_LOG_FILE))
+            self.general_log_folder =  self.config.get(GENERAL_TITLE, GENERAL_LOG_FOLDER)
         except Exception:
-            self.general_log_file = os.path.join(self.current_dir, "MintCheck.log")
+            self.general_log_folder = "logs"
+            missing_entry(GENERAL_TITLE, GENERAL_LOG_FOLDER, file_name, self.logger, self.general_log_folder)
+        try:
+            self.general_log_file = self.config.get(GENERAL_TITLE, GENERAL_LOG_FILE)
+        except Exception:
+            self.general_log_file = "MintCheck.log"
             missing_entry(GENERAL_TITLE, GENERAL_LOG_FILE, file_name, None, self.general_log_file)
+        log_path = os.path.join(self.current_dir, self.general_log_folder)
+        if not os.path.exists(log_path):
+            os.makedirs(log_path)
+        self.general_log_file = os.path.join(log_path, self.general_log_file)
         try:
             log_console = self.config.getboolean(GENERAL_TITLE, GENERAL_LOG_CONSOLE)
         except Exception:
@@ -340,6 +351,18 @@ class MintConfigFile:
         except Exception:
             self.general_exceptions_to = [self.general_admin_email]
             missing_entry(GENERAL_TITLE, GENERAL_EXCEPTIONS_TO, file_name, self.logger, self.general_exceptions_to)
+        try:
+            self.general_pickle_folder =  self.config.get(GENERAL_TITLE, GENERAL_PICKLE_FOLDER)
+        except Exception:
+            self.general_pickle_folder = "pickle"
+            missing_entry(GENERAL_TITLE, GENERAL_PICKLE_FOLDER, file_name, self.logger, self.general_pickle_folder)
+        try:
+            self.general_html_folder =  self.config.get(GENERAL_TITLE, GENERAL_HTML_FOLDER)
+        except Exception:
+            self.general_html_folder = "html"
+            missing_entry(GENERAL_TITLE, GENERAL_HTML_FOLDER, file_name, self.logger, self.general_html_folder)
+        if not os.path.exists(self.general_html_folder):
+            os.makedirs(self.general_html_folder)
 
         # DEBUG section
         try:
@@ -358,17 +381,14 @@ class MintConfigFile:
             self.debug_send_email = True
             missing_entry(DEBUG_TITLE, DEBUG_SEND_EMAIL, file_name, self.logger, self.debug_send_email)
         try:
-            self.debug_mint_pickle_file = os.path.join(self.current_dir,
-                                                       self.config.get(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE))
+            self.debug_mint_pickle_file = self.config.get(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE)
         except Exception:
-            self.debug_mint_pickle_file = None
+            self.debug_mint_pickle_file = "mint.pickle"
             missing_entry(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE, file_name, self.logger, "")
-        try:
-            self.debug_sheets_pickle_file = os.path.join(self.current_dir,
-                                                         self.config.get(DEBUG_TITLE, DEBUG_SHEETS_PICKLE_FILE))
-        except Exception:
-            self.debug_sheets_pickle_file = None
-            missing_entry(DEBUG_TITLE, DEBUG_SHEETS_PICKLE_FILE, file_name, self.logger, "")
+        pickle_path = os.path.join(self.current_dir, self.general_pickle_folder)
+        if not os.path.exists(pickle_path):
+            os.makedirs(pickle_path)
+        self.debug_mint_pickle_file = os.path.join(pickle_path, self.debug_mint_pickle_file)
         try:
             self.debug_debugging = self.config.getboolean(DEBUG_TITLE, DEBUG_DEBUGGING)
         except Exception:
@@ -432,7 +452,7 @@ class MintConfigFile:
             missing_entry(SHEETS_TITLE, SHEETS_UNPAID_COLOR, file_name, self.logger, self.sheets_unpaid_color)
         self.users = []
         self.google_sheets = []
-
+        self.worst_day_error = 0
         for section in self.config.sections():
             if section not in SKIP_TITLES:
                 if section in self.general_users or "all" in self.general_users:
@@ -443,7 +463,11 @@ class MintConfigFile:
                 if (section in self.general_google_sheets or "all" in self.general_google_sheets) \
                         and self.sheets_json_file is not None:
                     try:
-                        self.google_sheets.append(GoogleSheet(section, self.sheets_day_error, self))
+                        sheet = GoogleSheet(section, self.sheets_day_error, self)
+                        if sheet.day_error > self.worst_day_error:
+                            self.worst_day_error = sheet.day_error
+                        self.google_sheets.append(sheet)
+
                     except:
                         self.logger.debug("skipping Sheet section " + section + " in configuration file")
 
@@ -482,7 +506,6 @@ class MintConfigFile:
             dump_config_value(DEBUG_SHEETS_DOWNLOAD, self.debug_sheets_download)
             dump_config_value(DEBUG_TITLE, self.debug_save_html)
             dump_config_value(DEBUG_MINT_PICKLE_FILE, self.debug_mint_pickle_file)
-            dump_config_value(DEBUG_SHEETS_PICKLE_FILE, self.debug_sheets_pickle_file)
             dump_config_value(DEBUG_DEBUGGING, self.debug_debugging)
             dump_config_value(DEBUG_COPY_ADMIN, self.debug_copy_admin)
 

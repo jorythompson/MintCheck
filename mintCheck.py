@@ -153,52 +153,49 @@ class MintCheck:
 def main():
     mint_check = MintCheck()
     logger = mint_check.logger
-    for count in range(1, 5):
-        try:
-            if mint_check.args.live:
-                sleep_time = randint(0, 60 * mint_check.config.general_sleep)
-                mint_check.logger.info("Waiting a random time so we don't connect to Mint at the same time every day."
-                                       + "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S')
-                                       + " for "
-                                       + datetime.datetime.fromtimestamp(sleep_time).
-                                       strftime('%M minutes and %S seconds')
-                                       + ", waking at " + (datetime.datetime.now()
-                                                           + datetime.timedelta(seconds=sleep_time)).
-                                       strftime('%H:%M:%S'))
-                time.sleep(sleep_time)
-            logger = mint_check.logger
-            mint_check.collect_and_send()
-            break
-        except:
-            if logger is None:
-                logger = logging.getLogger(__name__)
-            logger.critical("Exception caught!  Tried " + str(count) + " times.")
-            type_, value_, traceback_ = sys.exc_info()
-            traceback.print_exc()
-            tb = traceback.format_exception(type_, value_, traceback_)
-            for line in tb:
-                logger.critical(line)
-            if count >= 4:
-                logger.critical("Last exception follows:")
-                type_, value_, traceback_ = sys.exc_info()
-                traceback.print_exc()
-                message = "<html>"
-                message += "<b><center>Problem with Mint Checker</center></b><br>"
-                tb = traceback.format_exception(type_, value_, traceback_)
-                for line in tb:
-                    message += line + "<br>"
-                    logger.critical(line)
-                message += "\n Log information:\n"
-                with open(mint_check.config.general_log_file, 'r') as f:
-                    data = f.read().replace("\n", "<br>")
-                message += data
-                email_sender = EmailSender(mint_check.config.email_connection, mint_check.logger)
-                for email_to in mint_check.config.general_exceptions_to:
-                    if mint_check.config.debug_copy_admin:
-                        cc = mint_check.config.general_admin_email
-                    else:
-                        cc = None
-                    email_sender.send(email_to, "Exception caught in MintCheck", message, cc)
+    try:
+        if mint_check.args.live:
+            sleep_time = randint(0, 60 * mint_check.config.general_sleep)
+            mint_check.logger.info("Waiting a random time so we don't connect to Mint at the same time every day."
+                                   + "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S')
+                                   + " for "
+                                   + datetime.datetime.fromtimestamp(sleep_time).
+                                   strftime('%M minutes and %S seconds')
+                                   + ", waking at " + (datetime.datetime.now()
+                                                       + datetime.timedelta(seconds=sleep_time)).
+                                   strftime('%H:%M:%S'))
+            time.sleep(sleep_time)
+        logger = mint_check.logger
+        mint_check.collect_and_send()
+    except Exception:
+        if logger is None:
+            logger = logging.getLogger(__name__)
+        logger.critical("Exception caught!")
+        type_, value_, traceback_ = sys.exc_info()
+        traceback.print_exc()
+        tb = traceback.format_exception(type_, value_, traceback_)
+        for line in tb:
+            logger.critical(line)
+        logger.critical("Last exception follows:")
+        type_, value_, traceback_ = sys.exc_info()
+        traceback.print_exc()
+        message = "<html>"
+        message += "<b><center>Problem with Mint Checker</center></b><br>"
+        tb = traceback.format_exception(type_, value_, traceback_)
+        for line in tb:
+            message += line + "<br>"
+            logger.critical(line)
+        message += "\n Log information:\n"
+        with open(mint_check.config.general_log_file, 'r') as f:
+            data = f.read().replace("\n", "<br>")
+        message += data
+        email_sender = EmailSender(mint_check.config.email_connection, mint_check.logger)
+        for email_to in mint_check.config.general_exceptions_to:
+            if mint_check.config.debug_copy_admin:
+                cc = mint_check.config.general_admin_email
+            else:
+                cc = None
+            email_sender.send(email_to, "Exception caught in MintCheck", message, cc)
     mint_check.logger.info("Done!")
 
 if __name__ == "__main__":

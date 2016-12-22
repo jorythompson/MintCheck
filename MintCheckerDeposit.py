@@ -7,7 +7,6 @@ from mintSheets import MintSheet
 import locale
 from dateutil import parser
 import ast
-import logging
 
 
 class MintCheckerDeposit:
@@ -18,8 +17,7 @@ class MintCheckerDeposit:
                                      validate=self.args.validate_ini)
         self.logger = self.config.logger
         self.logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
-        scope = ['https://spreadsheets.google.com/feeds']
-        credentials = ServiceAccountCredentials.from_json_keyfile_name(self.config.sheets_json_file, scope)
+        credentials = ServiceAccountCredentials.from_json_keyfile_name(self.config.sheets_json_file, MintSheet.scope)
         self.g_spread = gspread.authorize(credentials)
 
     def _get_args(self):
@@ -32,7 +30,7 @@ class MintCheckerDeposit:
                             help='List of notes to add to the google sheet')
         parser.add_argument('--amounts', required=True,
                             help='List of values to add to the google sheet')
-        parser.add_argument('--account', required=True,
+        parser.add_argument('--deposit-account', required=True,
                             help='Account to apply this deposit to')
         parser.add_argument('--date', required=False, default=self.now.strftime("%m/%d/%Y"),
                             help='Date to use for this deposit')
@@ -55,20 +53,23 @@ class MintCheckerDeposit:
                 raise RuntimeError("Number of elements in payors and amounts should be the same")
             self.logger.debug("notes are " + str(notes))
             self.logger.debug("amounts are " + str(amounts))
-            self.logger.debug("account is '" + self.args.account + "'")
+            self.logger.debug("account is '" + self.args.deposit_account + "'")
             self.logger.debug("date is '" + self.args.date + "'")
             self.logger.debug("validate ini is '" + str(self.args.validate_ini) + "'")
             self.logger.debug("validate emails is '" + str(self.args.validate_emails) + "'")
             self.now = parser.parse(self.args.date)
             for sheet in self.config.google_sheets:
-                if sheet.billing_account == self.args.account:
-                    self.logger.debug("found tab as " + self.args.account)
-                    worksheet = self.g_spread.open(self.args.sheet).worksheet(sheet.tab_names[0])
+                if sheet.deposit_account == self.args.deposit_account:
+                    self.logger.debug("found tab as " + self.args.deposit_account)
+                    worksheet = MintSheet.get_sheet(self.g_spread, sheet.sheet_name, sheet.tab_name, self.logger,
+                                                    self.config.general_admin_email)
+                    list_of_lists = worksheet.get_all_values()
                     row_count = sheet.start_row - 1
                     while True:
                         row_count += 1
                         deposit_amount, deposit_date = \
-                            MintSheet.get_row(self.logger, row_count, sheet.amount_col, sheet.date_col, worksheet)
+                            MintSheet.get_row(self.logger, row_count, sheet.amount_col, sheet.date_col, list_of_lists,
+                                              sheet.sheet_name, self.args.deposit_account)
                         if deposit_date is None and deposit_amount is None:  # both are None
                             for entry in range(0, len(amounts)):
                                 if amounts[entry] is not None:

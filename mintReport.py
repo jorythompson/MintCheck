@@ -8,6 +8,7 @@ import datetime
 from itertools import tee, chain, izip, islice
 from mintCheck import MintCheck
 from datetime import datetime, date, time, timedelta
+import os
 
 BORDER_STYLE = "border-bottom:1px solid black"
 
@@ -89,13 +90,14 @@ class PrettyPrint:
                             tags.td(total_field, align="right", style=border)
         else:
             with debit_accounts_html.add(tags.body()).add(tags.div(id='content')):
-                tags.h1("No Required Balances For This Period", align="center")
+                tags.h5("No Required Balances For This Period", align="center")
         return debit_accounts_html
 
     def create_activity(self, start_date, user, handled_accounts, user_accounts):
         bad_transactions = []
         transactions = []
         activity_html = tags.html()
+        activity = False
         with activity_html.add(tags.body()).add(tags.div(id='content')):
             fis = self.transactions.get_financial_institutions(start_date)
             for fi in fis:
@@ -104,6 +106,7 @@ class PrettyPrint:
                 for account_name in account_names:
                     if self.config.mint_ignore_accounts not in account_name and \
                             (account_name in user.active_accounts or "all" in user.active_accounts):
+                        activity = True
                         if account_name in handled_accounts:
                             continue
                         handled_accounts.append(account_name)
@@ -118,7 +121,6 @@ class PrettyPrint:
                             account_message += " credit card"
                             next_payment_date = self.config.get_next_payment_date(account_name, mint_account["dueDate"])
                             next_payment_amount = mint_account["dueAmt"]
-                            trigger_date = self.now + timedelta(days=-self.config.past_due_days_before)
                             if next_payment_date is None:
                                 next_payment_date = " on undetermined date"
                             else:
@@ -189,6 +191,9 @@ class PrettyPrint:
                                             tags.td(locale.currency(amount, grouping=True),
                                                     align="right")
                                             tags.td("")
+        if not activity:
+            with activity_html.add(tags.body()).add(tags.div(id='content')):
+                tags.h5("No Transactions For This Period", align="center")
         return activity_html, transactions, bad_transactions
 
     def create_balance_warnings(self, balance_warnings, user):
@@ -242,7 +247,7 @@ class PrettyPrint:
                             tags.td(due_date)
         else:
             with balance_warnings_html.add(tags.body()).add(tags.div(id='content')):
-                tags.h1("No Accounts With Balance Alerts For This Period", align="center")
+                tags.h5("No Accounts With Balance Alerts For This Period", align="center")
         return balance_warnings_html
 
     def get_fees(self, bad_transactions, user):
@@ -289,7 +294,7 @@ class PrettyPrint:
                                 tags.td("")
         else:
             with fees_html.add(tags.body()).add(tags.div(id='content')):
-                tags.h1("No Flagged Transactions For This Period", align="center")
+                tags.h5("No Flagged Transactions For This Period", align="center")
         return fees_html
 
     def get_accounts(self, user):
@@ -429,7 +434,7 @@ class PrettyPrint:
                             tags.td(locale.currency(deposit["deposit_amount"], grouping=True))
         else:
             with deposit_warnings_html.add(tags.body()).add(tags.div(id='content')):
-                tags.h1("No Managed Deposits For This Period", align="center")
+                tags.h5("No Managed Deposits For This Period", align="center")
         return deposit_warnings_html
 
     def send_data(self):
@@ -512,7 +517,8 @@ class PrettyPrint:
                     tags.div(raw(raw_html))
                 message = str(report_period_html) + message
                 if self.config.debug_save_html is not None:
-                    file_name = user.name + "_" +self.config.debug_save_html
+                    file_name = os.path.join(self.config.general_html_folder,
+                                             user.name + "_" +self.config.debug_save_html)
                     self.logger.debug("saving html file to " + file_name)
                     with open(file_name, "w") as out_html:
                         out_html.write(message)
