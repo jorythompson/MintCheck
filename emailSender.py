@@ -4,6 +4,7 @@ from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
 import ConfigParser
 import logging
+import inspect
 
 
 class EmailConnection:
@@ -24,12 +25,11 @@ class EmailConnection:
 
 
 class EmailSender:
-    def __init__(self, email_connection, logger):
+    def __init__(self, email_connection):
         self.email_connection = email_connection
-        self.logger = logger
 
     def send(self, to_email, subject, message, cc=None):
-        self.logger.debug("starting to send email to " + to_email)
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         msg = MIMEMultipart('alternative')
         msg['From'] = self.email_connection.from_user
         recipients = [to_email]
@@ -49,9 +49,9 @@ class EmailSender:
             server.login(self.email_connection.username, self.email_connection.password)
             server.sendmail(self.email_connection.username, recipients, msg.as_string())
             server.quit()
-            self.logger.debug("Successfully sent mail to " + to_email)
+            logger.debug("Successfully sent mail to " + to_email)
         except smtplib.SMTPAuthenticationError as e:
-            self.logger.warn("Failed to send mail to " + to_email)
+            logger.warn("Failed to send mail to " + to_email)
 
 
 if __name__ == "__main__":

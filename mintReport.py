@@ -9,19 +9,20 @@ from itertools import tee, chain, izip, islice
 from mintCheck import MintCheck
 from datetime import datetime, date, time, timedelta
 import os
+import logging
+import inspect
 
 BORDER_STYLE = "border-bottom:1px solid black"
 
 
 class PrettyPrint:
-    def __init__(self, accounts, transactions, sheets, config, logger):
+    def __init__(self, accounts, transactions, sheets, config):
         self.config = config
         self.accounts = accounts
         self.transactions = transactions
         self.sheets = sheets
         self.now = datetime.combine(date.today(), time())
         self.doc = None
-        self.logger = logger
 
     @staticmethod
     def previous_and_next(some_iterable):
@@ -46,11 +47,12 @@ class PrettyPrint:
         return sorted(items, cmp=comparator)
 
     def create_debit_accounts(self, debit_accounts, missing_debit_accounts):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         debit_accounts_html = tags.html()
         if len(debit_accounts) > 0 or len(missing_debit_accounts) > 0:
             sorted_debit_accounts = PrettyPrint.multi_key_sort(debit_accounts,
                                                                ["mint next payment date", "mint paid from account"])
-            self.logger.info("assembling debit account list")
+            logger.info("assembling debit account list")
             with debit_accounts_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Required Balances in Debit Accounts Due Soon", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
@@ -197,9 +199,10 @@ class PrettyPrint:
         return activity_html, transactions, bad_transactions
 
     def create_balance_warnings(self, balance_warnings, user):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         balance_warnings_html = tags.html()
         if len(balance_warnings) > 0:
-            self.logger.info("assembling balance warnings")
+            logger.info("assembling balance warnings")
             with balance_warnings_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Accounts With Balance Alerts", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
@@ -251,9 +254,10 @@ class PrettyPrint:
         return balance_warnings_html
 
     def get_fees(self, bad_transactions, user):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         fees_html = tags.html()
         if len(bad_transactions) > 0:
-            self.logger.info("assembling bad transactions")
+            logger.info("assembling bad transactions")
             with fees_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Tagged Transactions", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
@@ -298,8 +302,9 @@ class PrettyPrint:
         return fees_html
 
     def get_accounts(self, user):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         accounts = []
-        self.logger.info("assembling account lists")
+        logger.info("assembling account lists")
         for account in self.accounts.accounts:
             for account_name in user.accounts:
                 if (account_name == "all" or account_name == account["name"]) \
@@ -390,11 +395,12 @@ class PrettyPrint:
         return accounts_html, accounts, debit_accounts, missing_debit_accounts
 
     def create_debug_section(self):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         debug_html = None
         if not self.config.debug_send_email or not self.config.debug_mint_download \
                 or not self.config.debug_sheets_download:
             debug_html = tags.html()
-            self.logger.info("assembling debug section")
+            logger.info("assembling debug section")
             with debug_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("*** WARNING - DEBUG VALUES SET ***", align="center", style="color:red")
                 if not self.config.debug_send_email:
@@ -406,10 +412,11 @@ class PrettyPrint:
         return debug_html
 
     def create_deposit_warnings(self, user):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         sheets = self.sheets.get_missing_deposits(self.transactions, user)
         deposit_warnings_html = tags.html()
         if len(sheets) > 0:
-            self.logger.info("assembling missing deposits")
+            logger.info("assembling missing deposits")
             with deposit_warnings_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Managed Deposits", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
@@ -438,14 +445,15 @@ class PrettyPrint:
         return deposit_warnings_html
 
     def send_data(self):
-        self.logger.debug("starting send_data")
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger.debug("starting send_data")
         user_accounts = {}
         for user in self.config.users:
             handled_accounts = []
             deposit_warnings_html = self.create_deposit_warnings(user)
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
                 continue
-            self.logger.info("handling user:" + user.name)
+            logger.info("handling user:" + user.name)
             start_date, report_frequency = MintCheck.get_start_date(self.now, self.config.general_week_start,
                                                                     self.config.general_month_start, user.frequency)
             balance_warnings = []
@@ -453,7 +461,7 @@ class PrettyPrint:
                 if (self.config.mint_ignore_accounts not in account["name"]) and (
                                 account["name"] in user.active_accounts
                         or "all" in user.active_accounts and not account["isClosed"]):
-                    self.logger.debug("Processing account " + account["name"] + " for user:" + user.name)
+                    logger.debug("Processing account " + account["name"] + " for user:" + user.name)
                     t = None
                     for warning in self.config.balance_warnings:
                         if account["name"] == warning.account_name:
@@ -519,17 +527,17 @@ class PrettyPrint:
                 if self.config.debug_save_html is not None:
                     file_name = os.path.join(self.config.general_html_folder,
                                              user.name + "_" +self.config.debug_save_html)
-                    self.logger.debug("saving html file to " + file_name)
+                    logger.debug("saving html file to " + file_name)
                     with open(file_name, "w") as out_html:
                         out_html.write(message)
                 if self.config.debug_send_email:
-                    email_sender = EmailSender(self.config.email_connection, self.logger)
+                    email_sender = EmailSender(self.config.email_connection)
                     for email in user.email:
-                        self.logger.debug("Sending email to " + email)
+                        logger.debug("Sending email to " + email)
                         if self.config.debug_copy_admin:
                             cc = self.config.general_admin_email
                         else:
                             cc = None
                         email_sender.send(email, user.subject, message, cc)
                 else:
-                    self.logger.debug("Not sending emails")
+                    logger.debug("Not sending emails")

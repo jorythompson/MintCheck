@@ -1,6 +1,7 @@
 import ConfigParser
 import ast
 import logging
+import logging.config
 import logging.handlers
 from emailSender import EmailConnection
 import locale
@@ -10,6 +11,8 @@ from emailSender import EmailSender
 import datetime
 import os
 from dateutil.relativedelta import relativedelta
+import inspect
+
 
 # mint connection block
 MINT_TITLE = "mint connection"
@@ -24,15 +27,11 @@ MINT_IGNORE_ACCOUNTS = "ignore_accounts_containing"
 GENERAL_TITLE = "general"
 GENERAL_WEEK_START = "week_start"
 GENERAL_MONTH_START = "month_start"
-GENERAL_LOG_LEVEL = "log_level"
-GENERAL_LOG_FILE = "log_file"
-GENERAL_LOG_CONSOLE = "log_console"
 GENERAL_ADMIN_EMAIL = "admin_email"
 GENERAL_USERS = "users"
 GENERAL_GOOGLE_SHEETS = "google_sheets"
 GENERAL_MAX_SLEEP = "max_sleep"
 GENERAL_EXCEPTIONS_TO = "exceptions_to"
-GENERAL_LOG_FOLDER = "log_folder"
 GENERAL_PICKLE_FOLDER = "pickle_folder"
 GENERAL_HTML_FOLDER = "html_folder"
 
@@ -89,9 +88,9 @@ SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, D
                SHEETS_TITLE]
 
 
-def missing_entry(section, entry, file_name, logger, default_value=None):
-    if logger is None:
-        logger = logging.getLogger(__name__)
+def missing_entry(section, entry, file_name, default_value=None):
+    logger = logging.getLogger(inspect.stack()[0][3])
+    logger.debug("starting")
     if default_value is None:
         log_fn = logger.critical
         message = "Required entry"
@@ -136,11 +135,11 @@ class GoogleSheet:
         try:
             self.tab_name = config.config.get(section, SHEETS_TAB_NAME)
         except:
-            missing_entry(section, SHEETS_TAB_NAME, config.file_name, config.logger)
+            missing_entry(section, SHEETS_TAB_NAME, config.file_name)
         try:
             self.day_error = config.config.getint(section, SHEETS_DAY_ERROR)
         except:
-            missing_entry(section, SHEETS_DAY_ERROR, config.file_name, config.logger, default_day_error)
+            missing_entry(section, SHEETS_DAY_ERROR, config.file_name, default_day_error)
             self.day_error = default_day_error
 
     def dump(self):
@@ -159,9 +158,9 @@ class GoogleSheet:
 class MintUser:
     # Throws an exception if email and active_accounts are not set
     def __init__(self, name, config):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         self.name = name
         self.email = ast.literal_eval("[" + config.config.get(name, USER_EMAIL) + "]")
-        self.logger = config.logger
         try:
             self.subject = config.config.get(name, USER_SUBJECT)
         except Exception:
@@ -170,26 +169,26 @@ class MintUser:
             self.frequency = ast.literal_eval("[" + config.config.get(name, USER_FREQUENCY) + "]")
             for freq in self.frequency:
                 if freq not in ALLOWED_USER_FREQUENCIES:
-                    config.config.logger.warn("only values in " + str(ALLOWED_USER_FREQUENCIES) + " are permitted for "
-                                              + USER_FREQUENCY)
+                    logger.warn("only values in " + str(ALLOWED_USER_FREQUENCIES) + " are permitted for "
+                                + USER_FREQUENCY)
                     raise Exception("invalid user frequency")
         except Exception:
-            missing_entry(name, USER_FREQUENCY, config.file_name, self.logger)
+            missing_entry(name, USER_FREQUENCY, config.file_name)
             self.frequency = "weekly"
         try:
             self.rename_accounts = ast.literal_eval("{" + config.config.get(name, USER_RENAME_ACCOUNT) + "}")
         except Exception:
-            missing_entry(name, USER_RENAME_ACCOUNT, config.file_name, self.logger, "")
+            missing_entry(name, USER_RENAME_ACCOUNT, config.file_name, "")
             self.rename_accounts = {}
         try:
             self.rename_institutions = ast.literal_eval("{" + config.config.get(name, USER_RENAME_INSTITUTION) + "}")
         except Exception:
-            missing_entry(name, USER_RENAME_INSTITUTION, config.file_name, self.logger, "")
+            missing_entry(name, USER_RENAME_INSTITUTION, config.file_name, "")
             self.rename_institutions = {}
         try:
             self.accounts = ast.literal_eval("[" + config.config.get(name, USER_ACCOUNTS) + "]")
         except Exception:
-            missing_entry(name, USER_ACCOUNTS, config.file_name, self.logger, "")
+            missing_entry(name, USER_ACCOUNTS, config.file_name, "")
             self.accounts = {}
         self.active_accounts = ast.literal_eval("[" + config.config.get(name, USER_ACTIVE_ACCOUNTS) + "]")
 
@@ -214,71 +213,36 @@ def dump_config_value(key, value=None):
 
 class MintConfigFile:
     def __init__(self, file_name, validate=False, test_email=False):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         self.file_name = file_name
         self.config = ConfigParser.ConfigParser()
         self.config.optionxform = str
         self.config.read(file_name)
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        try:
-            level = self.config.get(GENERAL_TITLE, GENERAL_LOG_LEVEL).upper()
-        except Exception:
-            level = logging.WARN
-            missing_entry(GENERAL_TITLE, GENERAL_LOG_LEVEL, file_name, None, level)
-        try:
-            self.general_log_folder =  self.config.get(GENERAL_TITLE, GENERAL_LOG_FOLDER)
-        except Exception:
-            self.general_log_folder = "logs"
-            missing_entry(GENERAL_TITLE, GENERAL_LOG_FOLDER, file_name, self.logger, self.general_log_folder)
-        try:
-            self.general_log_file = self.config.get(GENERAL_TITLE, GENERAL_LOG_FILE)
-        except Exception:
-            self.general_log_file = "MintCheck.log"
-            missing_entry(GENERAL_TITLE, GENERAL_LOG_FILE, file_name, None, self.general_log_file)
-        log_path = os.path.join(self.current_dir, self.general_log_folder)
-        if not os.path.exists(log_path):
-            os.makedirs(log_path)
-        self.general_log_file = os.path.join(log_path, self.general_log_file)
-        try:
-            log_console = self.config.getboolean(GENERAL_TITLE, GENERAL_LOG_CONSOLE)
-        except Exception:
-            log_console = False
-            missing_entry(GENERAL_TITLE, GENERAL_LOG_CONSOLE, file_name, None, log_console)
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(level)
-        file_handler = logging.handlers.RotatingFileHandler(self.general_log_file, mode='a', maxBytes=10000, backupCount=5)
-        file_handler.setLevel(level)
-        formatter = logging.Formatter('%(asctime)s:%(levelname)s: %(message)s')
-        file_handler.setFormatter(formatter)
-        self.logger.addHandler(file_handler)
-        if log_console:
-            console_handler = logging.StreamHandler()
-            console_handler.setFormatter(formatter)
-            self.logger.addHandler(console_handler)
-        self.logger.info("Starting session")
+        logger.info("Starting session")
 
         # MINT section
         try:
             self.mint_username = self.config.get(MINT_TITLE, MINT_USER_USERNAME)
         except Exception:
-            missing_entry(MINT_TITLE, MINT_USER_USERNAME, self.file_name, self.logger)
+            missing_entry(MINT_TITLE, MINT_USER_USERNAME, self.file_name)
         try:
             self.mint_password = self.config.get(MINT_TITLE, MINT_USER_PASSWORD)
         except Exception:
-            missing_entry(MINT_TITLE, MINT_USER_PASSWORD, file_name, self.logger)
+            missing_entry(MINT_TITLE, MINT_USER_PASSWORD, file_name)
         try:
             self.mint_cookie = self.config.get(MINT_TITLE, MINT_COOKIE)
         except Exception:
-            missing_entry(MINT_TITLE, MINT_COOKIE, file_name, self.logger)
+            missing_entry(MINT_TITLE, MINT_COOKIE, file_name)
         try:
             self.mint_cookie_2 = self.config.get(MINT_TITLE, MINT_COOKIE_2)
         except Exception:
-            missing_entry(MINT_TITLE, MINT_COOKIE_2, file_name, self.logger)
+            missing_entry(MINT_TITLE, MINT_COOKIE_2, file_name)
 
         try:
             self.mint_ignore_accounts = self.config.get(MINT_TITLE, MINT_IGNORE_ACCOUNTS)
         except Exception:
-            missing_entry(MINT_TITLE, MINT_IGNORE_ACCOUNTS, file_name, self.logger, default_value="")
+            missing_entry(MINT_TITLE, MINT_IGNORE_ACCOUNTS, file_name, default_value="")
             self.mint_ignore_accounts = None
 
         self.mint_remove_duplicates = self.config.get(MINT_TITLE, MINT_REMOVE_DUPLICATES)
@@ -322,45 +286,45 @@ class MintConfigFile:
             self.locale_val = self.config.get(LOCALE_TITLE, platform.system())
             locale.setlocale(locale.LC_ALL, self.locale_val)
         except Exception:
-            missing_entry(LOCALE_TITLE, platform.system(), file_name, self.logger)
+            missing_entry(LOCALE_TITLE, platform.system(), file_name)
 
         # GENERAL section
         try:
             self.general_admin_email = self.config.get(GENERAL_TITLE, GENERAL_ADMIN_EMAIL)
         except Exception:
-            missing_entry(GENERAL_TITLE, GENERAL_ADMIN_EMAIL, file_name, self.logger)
+            missing_entry(GENERAL_TITLE, GENERAL_ADMIN_EMAIL, file_name)
         try:
             self.general_users = ast.literal_eval("[" + self.config.get(GENERAL_TITLE, GENERAL_USERS) + "]")
         except Exception:
             self.general_users = "all"
-            missing_entry(GENERAL_TITLE, GENERAL_USERS, file_name, self.logger, default_value=self.general_users)
+            missing_entry(GENERAL_TITLE, GENERAL_USERS, file_name, default_value=self.general_users)
         try:
             self.general_google_sheets = \
                 ast.literal_eval("[" + self.config.get(GENERAL_TITLE, GENERAL_GOOGLE_SHEETS) + "]")
         except Exception:
             self.general_google_sheets = "all"
-            missing_entry(GENERAL_TITLE, GENERAL_GOOGLE_SHEETS, file_name, self.logger,
-                          default_value=self.general_google_sheets)
+            missing_entry(GENERAL_TITLE, GENERAL_GOOGLE_SHEETS, file_name, default_value=self.general_google_sheets)
         try:
             self.general_sleep = int(self.config.get(GENERAL_TITLE, GENERAL_MAX_SLEEP))
         except Exception:
             self.general_sleep = 10
-            missing_entry(GENERAL_TITLE, GENERAL_MAX_SLEEP, file_name, self.logger, self.general_sleep)
+            missing_entry(GENERAL_TITLE, GENERAL_MAX_SLEEP, file_name, self.general_sleep)
         try:
-            self.general_exceptions_to =  ast.literal_eval("[" + self.config.get(GENERAL_TITLE, GENERAL_EXCEPTIONS_TO) + "]")
+            self.general_exceptions_to = ast.literal_eval("[" + self.config.get(GENERAL_TITLE, GENERAL_EXCEPTIONS_TO)
+                                                          + "]")
         except Exception:
             self.general_exceptions_to = [self.general_admin_email]
-            missing_entry(GENERAL_TITLE, GENERAL_EXCEPTIONS_TO, file_name, self.logger, self.general_exceptions_to)
+            missing_entry(GENERAL_TITLE, GENERAL_EXCEPTIONS_TO, file_name, self.general_exceptions_to)
         try:
-            self.general_pickle_folder =  self.config.get(GENERAL_TITLE, GENERAL_PICKLE_FOLDER)
+            self.general_pickle_folder = self.config.get(GENERAL_TITLE, GENERAL_PICKLE_FOLDER)
         except Exception:
             self.general_pickle_folder = "pickle"
-            missing_entry(GENERAL_TITLE, GENERAL_PICKLE_FOLDER, file_name, self.logger, self.general_pickle_folder)
+            missing_entry(GENERAL_TITLE, GENERAL_PICKLE_FOLDER, file_name, self.general_pickle_folder)
         try:
-            self.general_html_folder =  self.config.get(GENERAL_TITLE, GENERAL_HTML_FOLDER)
+            self.general_html_folder = self.config.get(GENERAL_TITLE, GENERAL_HTML_FOLDER)
         except Exception:
             self.general_html_folder = "html"
-            missing_entry(GENERAL_TITLE, GENERAL_HTML_FOLDER, file_name, self.logger, self.general_html_folder)
+            missing_entry(GENERAL_TITLE, GENERAL_HTML_FOLDER, file_name, self.general_html_folder)
         if not os.path.exists(self.general_html_folder):
             os.makedirs(self.general_html_folder)
 
@@ -369,22 +333,22 @@ class MintConfigFile:
             self.debug_mint_download = self.config.getboolean(DEBUG_TITLE, DEBUG_MINT_DOWNLOAD)
         except Exception:
             self.debug_mint_download = True
-            missing_entry(DEBUG_TITLE, DEBUG_MINT_DOWNLOAD, file_name, self.logger, self.debug_mint_download)
+            missing_entry(DEBUG_TITLE, DEBUG_MINT_DOWNLOAD, file_name, self.debug_mint_download)
         try:
             self.debug_save_html = self.config.get(DEBUG_TITLE, DEBUG_SAVE_HTML)
         except Exception:
             self.debug_save_html = None
-            missing_entry(DEBUG_TITLE, DEBUG_SAVE_HTML, file_name, self.logger, self.debug_save_html)
+            missing_entry(DEBUG_TITLE, DEBUG_SAVE_HTML, file_name, self.debug_save_html)
         try:
             self.debug_send_email = self.config.getboolean(DEBUG_TITLE, DEBUG_SEND_EMAIL)
         except Exception:
             self.debug_send_email = True
-            missing_entry(DEBUG_TITLE, DEBUG_SEND_EMAIL, file_name, self.logger, self.debug_send_email)
+            missing_entry(DEBUG_TITLE, DEBUG_SEND_EMAIL, file_name, self.debug_send_email)
         try:
             self.debug_mint_pickle_file = self.config.get(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE)
         except Exception:
             self.debug_mint_pickle_file = "mint.pickle"
-            missing_entry(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE, file_name, self.logger, "")
+            missing_entry(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE, file_name, "")
         pickle_path = os.path.join(self.current_dir, self.general_pickle_folder)
         if not os.path.exists(pickle_path):
             os.makedirs(pickle_path)
@@ -393,63 +357,62 @@ class MintConfigFile:
             self.debug_debugging = self.config.getboolean(DEBUG_TITLE, DEBUG_DEBUGGING)
         except Exception:
             self.debug_debugging = False
-            missing_entry(DEBUG_TITLE, DEBUG_DEBUGGING, file_name, self.logger, self.debug_debugging)
+            missing_entry(DEBUG_TITLE, DEBUG_DEBUGGING, file_name, self.debug_debugging)
         try:
             self.debug_sheets_download = self.config.getboolean(DEBUG_TITLE, DEBUG_SHEETS_DOWNLOAD)
         except Exception:
             self.debug_sheets_download = True
-            missing_entry(DEBUG_TITLE, DEBUG_SHEETS_DOWNLOAD, file_name, self.logger, self.debug_sheets_download)
+            missing_entry(DEBUG_TITLE, DEBUG_SHEETS_DOWNLOAD, file_name, self.debug_sheets_download)
         try:
             self.debug_copy_admin = self.config.getboolean(DEBUG_TITLE, DEBUG_COPY_ADMIN)
         except Exception:
             self.debug_copy_admin = False
-            missing_entry(DEBUG_TITLE, DEBUG_COPY_ADMIN, file_name, self.logger, self.debug_send_email)
+            missing_entry(DEBUG_TITLE, DEBUG_COPY_ADMIN, file_name, self.debug_send_email)
 
         # account_types section
         try:
             self.account_type_credit_fg = self.config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT_FG)
         except Exception:
             self.account_type_credit_fg = "black"
-            missing_entry(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT_FG, file_name, self.logger,
-                          self.account_type_credit_fg)
+            missing_entry(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT_FG, file_name, self.account_type_credit_fg)
         try:
             self.account_type_bank_fg = self.config.get(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_FG)
         except Exception:
             self.account_type_bank_fg = "black"
-            missing_entry(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_FG, file_name, self.logger, self.account_type_bank_fg)
+            missing_entry(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_FG, file_name, self.account_type_bank_fg)
 
         try:
             self.past_due_days_before = self.config.getint(PAST_DUE_TITLE, PAST_DUE_DAYS_BEFORE)
         except Exception:
             self.past_due_days_before = 0
-            missing_entry(PAST_DUE_TITLE, PAST_DUE_DAYS_BEFORE, file_name, self.logger, self.past_due_days_before)
+            missing_entry(PAST_DUE_TITLE, PAST_DUE_DAYS_BEFORE, file_name, self.past_due_days_before)
         try:
             self.past_due_fg_color = self.config.get(PAST_DUE_TITLE, PAST_DUE_FOREGROUND_COLOR)
         except Exception:
             self.past_due_fg_color = "red"
-            missing_entry(PAST_DUE_TITLE, PAST_DUE_FOREGROUND_COLOR, file_name, self.logger, self.past_due_fg_color)
+            missing_entry(PAST_DUE_TITLE, PAST_DUE_FOREGROUND_COLOR, file_name, self.past_due_fg_color)
 
         self.email_connection = EmailConnection(self.config)
         try:
             self.sheets_json_file = os.path.join(self.current_dir, self.config.get(SHEETS_TITLE, SHEETS_JSON_FILE))
         except:
-            missing_entry(SHEETS_TITLE, SHEETS_JSON_FILE, file_name, self.logger, "")
+            missing_entry(SHEETS_TITLE, SHEETS_JSON_FILE, file_name, "")
             self.sheets_json_file = None
         try:
             self.sheets_day_error = self.config.getint(SHEETS_TITLE, SHEETS_DAY_ERROR)
         except:
             self.sheets_day_error = 3
-            missing_entry(SHEETS_TITLE, SHEETS_DAY_ERROR, file_name, self.logger, self.sheets_day_error)
+            missing_entry(SHEETS_TITLE, SHEETS_DAY_ERROR, file_name, self.sheets_day_error)
         try:
             self.sheets_paid_color = self.config.get(SHEETS_TITLE, SHEETS_PAID_COLOR)
         except:
             self.sheets_paid_color = "blue"
-            missing_entry(SHEETS_TITLE, SHEETS_PAID_COLOR, file_name, self.logger, self.sheets_paid_color)
+            missing_entry(SHEETS_TITLE, SHEETS_PAID_COLOR, file_name, self.sheets_paid_color)
         try:
             self.sheets_unpaid_color = self.config.get(SHEETS_TITLE, SHEETS_UNPAID_COLOR)
         except:
             self.sheets_unpaid_color = "purple"
-            missing_entry(SHEETS_TITLE, SHEETS_UNPAID_COLOR, file_name, self.logger, self.sheets_unpaid_color)
+            missing_entry(SHEETS_TITLE, SHEETS_UNPAID_COLOR, file_name, self.sheets_unpaid_color)
         self.users = []
         self.google_sheets = []
         self.worst_day_error = 0
@@ -459,7 +422,7 @@ class MintConfigFile:
                     try:
                         self.users.append(MintUser(section, self))
                     except:
-                        self.logger.debug("skipping Sheet section " + section + " in configuration file")
+                        logger.debug("skipping Sheet section " + section + " in configuration file")
                 if (section in self.general_google_sheets or "all" in self.general_google_sheets) \
                         and self.sheets_json_file is not None:
                     try:
@@ -467,14 +430,13 @@ class MintConfigFile:
                         if sheet.day_error > self.worst_day_error:
                             self.worst_day_error = sheet.day_error
                         self.google_sheets.append(sheet)
-
                     except:
-                        self.logger.debug("skipping Sheet section " + section + " in configuration file")
+                        logger.debug("skipping Sheet section " + section + " in configuration file")
 
         if validate or test_email:
             # mint connection block
             dump_config_value(MINT_TITLE)
-            dump_config_value(MINT_USER_USERNAME,self.mint_username)
+            dump_config_value(MINT_USER_USERNAME, self.mint_username)
             dump_config_value(MINT_USER_PASSWORD, self.mint_password)
             dump_config_value(MINT_COOKIE, self.mint_cookie)
             dump_config_value(MINT_COOKIE_2, self.mint_cookie_2)
@@ -485,9 +447,6 @@ class MintConfigFile:
             dump_config_value(GENERAL_TITLE)
             dump_config_value(GENERAL_WEEK_START, self.general_week_start)
             dump_config_value(GENERAL_MONTH_START, self.general_month_start)
-            dump_config_value(GENERAL_LOG_LEVEL, level)
-            dump_config_value(GENERAL_LOG_FILE, self.general_log_file)
-            dump_config_value(GENERAL_LOG_CONSOLE, log_console)
             dump_config_value(GENERAL_ADMIN_EMAIL, self.general_admin_email)
             dump_config_value(GENERAL_USERS, self.general_users)
             dump_config_value(GENERAL_GOOGLE_SHEETS, self.general_google_sheets)
@@ -549,14 +508,14 @@ class MintConfigFile:
             dump_config_value(EmailConnection.USERNAME, self.email_connection.username)
             dump_config_value(EmailConnection.PASSWORD, self.email_connection.password)
             dump_config_value(EmailConnection.FROM, self.email_connection.from_user)
-            email_sender = EmailSender(self.email_connection, self.logger)
+            email_sender = EmailSender(self.email_connection)
 
             # user blocks
             for user in self.users:
                 user.dump()
                 if test_email:
                     for email in user.email:
-                        self.logger.debug("Sending test email to " + user.name)
+                        logger.debug("Sending test email to " + user.name)
                         email_sender.send(email, user.subject, "This is a test message from MintCheck")
 
     @staticmethod
@@ -569,8 +528,10 @@ class MintConfigFile:
         return next_date
 
     def get_next_payment_date(self, account_name, next_date):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger.debug("starting")
         try:
-            config_file = "payment_dates_" + self.config_file
+            config_file = "payment_dates_" + self.file_name
             config = ConfigParser.ConfigParser()
             config.read(config_file)
             if next_date is None:
@@ -593,6 +554,7 @@ class MintConfigFile:
             return next_date
 
 if __name__ == "__main__":
+    logging.config.fileConfig('logging.conf')
     mint_config = MintConfigFile("home.ini", validate=True, test_email=False)
     now = datetime.datetime.now()
     import os
@@ -608,4 +570,3 @@ if __name__ == "__main__":
     print mint_config.get_next_payment_date("test", now + relativedelta(days=2))
     print mint_config.get_next_payment_date("test", None)
     print mint_config.get_next_payment_date("test", now + relativedelta(days=2))
-    print mint_config.logger.info("Done")

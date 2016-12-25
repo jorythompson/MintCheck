@@ -13,6 +13,7 @@ from random import randint
 import time
 import logging
 from mintSheets import MintSheet
+import inspect
 
 # from datetime import datetime, date, time
 ########################################################################################################################
@@ -23,55 +24,56 @@ from mintSheets import MintSheet
 
 class MintCheck:
     def __init__(self):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         self.args = None
         self.accounts = None
         self.mint_transactions = None
         self.args = MintCheck._get_args()
         self.config = MintConfigFile(self.args.config, test_email=self.args.validate_emails,
                                      validate=self.args.validate_ini)
-        self.logger = self.config.logger
         self.now = datetime.datetime.combine(datetime.date.today(), datetime.time())
-        self.logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
+        logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
 
     def connect(self):
         return mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
                             ius_session=self.config.mint_cookie, thx_guid=self.config.mint_cookie_2)
 
     def _get_data(self, start_date):
-        self.logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
         if self.config.debug_mint_download:
-            self.logger.debug("Connecting to Mint...")
+            logger.debug("Connecting to Mint...")
             mint = self.connect()
             if self.args.live:
-                self.logger.debug("Refreshing Mint")
+                logger.debug("Refreshing Mint")
                 mint.initiate_account_refresh()
-                self.logger.debug("Closing the Mint connection")
+                logger.debug("Closing the Mint connection")
                 mint.close()
                 sleep_time = 5 * 60 + randint(0, 5 * 60)  # sleep 5 minutes + some random time while mint refreshes
-                self.logger.info("Waiting for Mint to update accounts. Starting to sleep at "
-                                 + datetime.datetime.now().strftime('%H:%M:%S') + " for "
-                                 + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds')
-                                 + ", waking at " + (datetime.datetime.now() +
-                                                     datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
+                logger.info("Waiting for Mint to update accounts. Starting to sleep at "
+                            + datetime.datetime.now().strftime('%H:%M:%S') + " for "
+                            + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds')
+                            + ", waking at " + (datetime.datetime.now() +
+                                                datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
                 time.sleep(sleep_time)
-                self.logger.debug("Reconnecting to Mint...")
+                logger.debug("Reconnecting to Mint...")
                 mint = self.connect()
-            self.logger.info("getting accounts...")
-            self.accounts = mintObjects.MintAccounts(mint.get_accounts(get_detail=True), self.logger)
-            self.logger.info("Getting transactions...")
+            logger.info("getting accounts...")
+            self.accounts = mintObjects.MintAccounts(mint.get_accounts(get_detail=True))
+            logger.info("Getting transactions...")
             self.mint_transactions = mintObjects.MintTransactions(
                 mint.get_transactions_json(include_investment=False, skip_duplicates=self.config.mint_remove_duplicates,
-                                           start_date=start_date.strftime('%m/%d/%y')), self.logger)
-            self.logger.debug("pickling mint objects...")
+                                           start_date=start_date.strftime('%m/%d/%y')))
+            logger.debug("pickling mint objects...")
             self.pickle_mint()
         else:
-            self.logger.debug("unpicking mint objects...")
+            logger.debug("unpicking mint objects...")
             self.unpickle_mint()
             if self.config.debug_debugging:
-                self.accounts.dump(self.logger)
-                self.mint_transactions.dump(self.logger)
+                self.accounts.dump()
+                self.mint_transactions.dump()
 
-        self.logger.info("assembling \"paid from\" accounts")
+        logger.info("assembling \"paid from\" accounts")
         for paid_from in self.config.paid_from:
             for account in self.accounts.accounts:
                 if paid_from["debit account"] == account["accountName"]:
@@ -134,7 +136,7 @@ class MintCheck:
                 self._get_data(start_date - datetime.timedelta(days=max_day_error))
                 mint_sheet = MintSheet(self.config, start_date)
                 report = mintReport.PrettyPrint(self.accounts, self.mint_transactions, mint_sheet,
-                                                self.config, self.logger)
+                                                self.config)
                 report.send_data()
 
     def pickle_mint(self):
@@ -152,24 +154,18 @@ class MintCheck:
 
 def main():
     mint_check = MintCheck()
-    logger = mint_check.logger
+    logger = logging.getLogger(inspect.stack()[0][3])
     try:
         if mint_check.args.live:
             sleep_time = randint(0, 60 * mint_check.config.general_sleep)
-            mint_check.logger.info("Waiting a random time so we don't connect to Mint at the same time every day."
-                                   + "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S')
-                                   + " for "
-                                   + datetime.datetime.fromtimestamp(sleep_time).
-                                   strftime('%M minutes and %S seconds')
-                                   + ", waking at " + (datetime.datetime.now()
-                                                       + datetime.timedelta(seconds=sleep_time)).
-                                   strftime('%H:%M:%S'))
+            logger.info("Waiting a random time so we don't connect to Mint at the same time every day."
+                        + "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') + " for "
+                        + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds')
+                        + ", waking at "
+                        + (datetime.datetime.now() + datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
             time.sleep(sleep_time)
-        logger = mint_check.logger
         mint_check.collect_and_send()
     except Exception:
-        if logger is None:
-            logger = logging.getLogger(__name__)
         logger.critical("Exception caught!")
         type_, value_, traceback_ = sys.exc_info()
         traceback.print_exc()
@@ -186,17 +182,20 @@ def main():
             message += line + "<br>"
             logger.critical(line)
         message += "\n Log information:\n"
-        with open(mint_check.config.general_log_file, 'r') as f:
-            data = f.read().replace("\n", "<br>")
+        for handler in logger.handlers:
+            if "rotatingfilehandler" in handler.__name__:
+                with open(handler.baseFilename, 'r') as f:
+                    data = f.read().replace("\n", "<br>")
         message += data
-        email_sender = EmailSender(mint_check.config.email_connection, mint_check.logger)
+        email_sender = EmailSender(mint_check.config.email_connection)
         for email_to in mint_check.config.general_exceptions_to:
             if mint_check.config.debug_copy_admin:
                 cc = mint_check.config.general_admin_email
             else:
                 cc = None
             email_sender.send(email_to, "Exception caught in MintCheck", message, cc)
-    mint_check.logger.info("Done!")
+    logger.info("Done!")
 
 if __name__ == "__main__":
+    logging.config.fileConfig('logging.conf')
     main()

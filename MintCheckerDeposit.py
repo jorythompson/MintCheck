@@ -7,16 +7,17 @@ from mintSheets import MintSheet
 import locale
 from dateutil import parser
 import ast
-
+import logging
+import inspect
 
 class MintCheckerDeposit:
     def __init__(self):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         self.now = datetime.datetime.combine(datetime.date.today(), datetime.time())
         self.args = self._get_args()
         self.config = MintConfigFile(self.args.config, test_email=self.args.validate_emails,
                                      validate=self.args.validate_ini)
-        self.logger = self.config.logger
-        self.logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
+        logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
         credentials = ServiceAccountCredentials.from_json_keyfile_name(self.config.sheets_json_file, MintSheet.scope)
         self.g_spread = gspread.authorize(credentials)
 
@@ -41,9 +42,10 @@ class MintCheckerDeposit:
         return parser.parse_args()
 
     def update_sheet(self):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         try:
-            self.logger.debug("config file is '" + self.args.config + "'")
-            self.logger.debug("sheet is '" + self.args.sheet + "'")
+            logger.debug("config file is '" + self.args.config + "'")
+            logger.debug("sheet is '" + self.args.sheet + "'")
             notes = ast.literal_eval(str(self.args.notes))
             amounts = self.args.amounts
             while ",," in amounts:
@@ -51,40 +53,46 @@ class MintCheckerDeposit:
             amounts = ast.literal_eval(amounts)
             if len(amounts) != len(notes):
                 raise RuntimeError("Number of elements in payors and amounts should be the same")
-            self.logger.debug("notes are " + str(notes))
-            self.logger.debug("amounts are " + str(amounts))
-            self.logger.debug("account is '" + self.args.deposit_account + "'")
-            self.logger.debug("date is '" + self.args.date + "'")
-            self.logger.debug("validate ini is '" + str(self.args.validate_ini) + "'")
-            self.logger.debug("validate emails is '" + str(self.args.validate_emails) + "'")
+            logger.debug("notes are " + str(notes))
+            logger.debug("amounts are " + str(amounts))
+            logger.debug("account is '" + self.args.deposit_account + "'")
+            logger.debug("date is '" + self.args.date + "'")
+            logger.debug("validate ini is '" + str(self.args.validate_ini) + "'")
+            logger.debug("validate emails is '" + str(self.args.validate_emails) + "'")
             self.now = parser.parse(self.args.date)
             for sheet in self.config.google_sheets:
                 if sheet.deposit_account == self.args.deposit_account:
-                    self.logger.debug("found tab as " + self.args.deposit_account)
-                    worksheet = MintSheet.get_sheet(self.g_spread, sheet.sheet_name, sheet.tab_name, self.logger,
+                    logger.debug("found tab as " + self.args.deposit_account)
+                    worksheet = MintSheet.get_sheet(self.g_spread, sheet.sheet_name, sheet.tab_name,
                                                     self.config.general_admin_email)
                     list_of_lists = worksheet.get_all_values()
                     row_count = sheet.start_row - 1
                     while True:
                         row_count += 1
                         deposit_amount, deposit_date = \
-                            MintSheet.get_row(self.logger, row_count, sheet.amount_col, sheet.date_col, list_of_lists,
+                            MintSheet.get_row(row_count, sheet.amount_col, sheet.date_col, list_of_lists,
                                               sheet.sheet_name, self.args.deposit_account)
                         if deposit_date is None and deposit_amount is None:  # both are None
                             for entry in range(0, len(amounts)):
                                 if amounts[entry] is not None:
+                                    val = locale.currency(amounts[entry], grouping=True)
+                                    logger.debug("setting cell(" + sheet.amount_col + str(row_count) + ") to " + val)
                                     worksheet.update_cell(row=row_count, col=MintSheet.col2num(sheet.amount_col),
-                                                          val=locale.currency(amounts[entry], grouping=True))
+                                                          val=val)
+                                    val = notes[entry]
+                                    logger.debug("setting cell(" + sheet.notes_col + str(row_count) + ") to " + val)
                                     worksheet.update_cell(row=row_count, col=MintSheet.col2num(sheet.notes_col),
-                                                          val=notes[entry])
+                                                          val=val)
                                     row_count += 1
                                 if entry == len(amounts)-1:
+                                    val = self.now.strftime("%m/%d/%Y")
+                                    logger.debug("setting cell(" + sheet.date_col + str(row_count-1) + ") to " + val)
                                     worksheet.update_cell(row=row_count-1, col=MintSheet.col2num(sheet.date_col),
-                                                          val=self.now.strftime("%m/%d/%Y"))
+                                                          val=val)
                                     row_count += 1
                             break
         except Exception as e:
-            self.logger.exception("Caught an exception in " + __file__)
+            logger.exception("Caught an exception in " + __file__)
 
 
 def main():
@@ -92,4 +100,5 @@ def main():
     mcd.update_sheet()
 
 if __name__ == "__main__":
+    logging.config.fileConfig('logging.conf')
     main()

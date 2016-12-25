@@ -1,19 +1,20 @@
 from datetime import date, datetime
+import inspect
+import logging
 
 
-def clean_dictionary(name, obj, logger=None):
-    if logger is not None:
-        logger.debug(name + " before:")
-        logger.debug(str(obj))
+def clean_dictionary(name, obj):
+    logger = logging.getLogger(inspect.stack()[0][3])
+    logger.debug(name + " before:")
+    logger.debug(str(obj))
     for transaction in obj:
         for key in transaction:
             clean_key = str(key)
             transaction[clean_key] = transaction.pop(key)
             transaction[clean_key] = str(transaction[clean_key])
             transaction[clean_key] = parse_all(clean_key, transaction[clean_key])
-    if logger is not None:
-        logger.debug(name + " after:")
-        logger.debug(str(obj))
+    logger.debug(name + " after:")
+    logger.debug(str(obj))
     return obj
 
 DATE_STRING_FIELDS = [
@@ -69,7 +70,7 @@ def parse_all(key, val):
             val = None
     elif str(key) in DOLLAR_FIELDS:
         try:
-            val = float(val.replace("$", "").replace(",",""))
+            val = float(val.replace("$", "").replace(",", ""))
         except:
             val = None
     elif val == "False":
@@ -86,10 +87,11 @@ class MintTransactions:
     # __init__: constructor for a MintTransactions
     # obj:      string that describes a group of transactions
     ##############################################
-    def __init__(self, obj, logger):
-        self.transactions = clean_dictionary("MintTransactions", obj, logger)
+    def __init__(self, obj):
+        self.transactions = clean_dictionary("MintTransactions", obj)
 
-    def dump(self, logger):
+    def dump(self):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         for transaction in self.transactions:
             logger.debug("Dumping Transaction")
             for key in transaction:
@@ -143,8 +145,8 @@ class MintAccounts:
     # __init__: constructor for a MintAccounts
     # obj:      string that describes a group of accounts
     ##############################################
-    def __init__(self, obj, logger):
-        self.accounts = clean_dictionary("MintAccounts", obj, logger)
+    def __init__(self, obj):
+        self.accounts = clean_dictionary("MintAccounts", obj)
 
     def get_account(self, name):
         for account in self.accounts:
@@ -152,7 +154,8 @@ class MintAccounts:
                 return account
         return None
 
-    def dump(self, logger):
+    def dump(self):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         for account in self.accounts:
             logger.debug("Dumping " + account["name"])
             for key in account:

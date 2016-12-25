@@ -4,10 +4,10 @@ import cPickle
 from dateutil import parser
 from mintConfigFile import MintConfigFile
 from oauth2client.service_account import ServiceAccountCredentials
-import re
 import string
 import os
 import logging
+import inspect
 
 
 class MintSheet:
@@ -18,7 +18,6 @@ class MintSheet:
         credentials = ServiceAccountCredentials.from_json_keyfile_name(config.sheets_json_file, MintSheet.scope)
         self.config = config
         self.g_spread = gspread.authorize(credentials)
-        self.logger = config.logger
         self.sheet_data = self._get_data(start_date)
 
     @staticmethod
@@ -30,7 +29,8 @@ class MintSheet:
         return num
 
     @staticmethod
-    def get_sheet(g_spread, sheet_name, tab_name, logger, new_owner=None):
+    def get_sheet(g_spread, sheet_name, tab_name, new_owner=None):
+        logger = logging.getLogger(inspect.stack()[0][3])
         worksheet = None
         if "%" in sheet_name:
             sheet_name = datetime.datetime.now().strftime(sheet_name)
@@ -52,7 +52,7 @@ class MintSheet:
                     raise e
         try:
             logger.debug("trying to get tab '" + tab_name + "' on sheet '" + sheet_name + "'")
-            try: # share this worksheet in case we created it before but had an issue
+            try:  # share this worksheet in case we created it before but had an issue
                 permissions = worksheet.list_permissions()
                 added = False
                 for permission in permissions:
@@ -65,7 +65,7 @@ class MintSheet:
             except:
                 pass
             return worksheet.worksheet(tab_name)
-        except Exception as e:
+        except:
             logger.debug("failed trying to open tab '" + tab_name + "' on sheet '" + sheet_name + "'")
             if new_owner is None:
                 logging.exception("Could not get tab '" + tab_name + "' on sheet '" + sheet_name + "'")
@@ -73,7 +73,7 @@ class MintSheet:
                 try:
                     logger.debug("trying to create tab '" + tab_name + "'")
                     tab = worksheet.add_worksheet(tab_name, cols=100, rows=100)
-                    try: # remove Sheet1 if it exists
+                    try:  # remove Sheet1 if it exists
                         worksheet.del_worksheet(worksheet.worksheet("Sheet1"))
                     except:
                         pass
@@ -83,11 +83,12 @@ class MintSheet:
                     raise e
 
     @staticmethod
-    def dollars2float(str):
-        return float(str.replace(",","").replace("$",""))
+    def dollars2float(string_in):
+        return float(string_in.replace(",", "").replace("$", ""))
 
     @staticmethod
-    def get_row(logger, row, amount_col, date_col, list_of_lists, sheet_name, tab_name):
+    def get_row(row, amount_col, date_col, list_of_lists, sheet_name, tab_name):
+        logger = logging.getLogger(inspect.stack()[0][3])
         logger.debug("getting row #" + str(row) + " on tab '" + tab_name
                      + "', on sheet '" + sheet_name + "'")
         try:
@@ -124,7 +125,8 @@ class MintSheet:
                         appended = True
                     if transaction["account"] == data["deposit_account"] \
                             and transaction["amount"] == data["deposit_amount"]:
-                        if data["expected_deposit_date"] + datetime.timedelta(data["date_error"]) >= transaction["date"] \
+                        if data["expected_deposit_date"]\
+                                + datetime.timedelta(data["date_error"]) >= transaction["date"] \
                                 >= data["expected_deposit_date"] - datetime.timedelta(data["date_error"]):
                             data["actual_deposit_date"] = transaction["date"]
                             break
@@ -140,19 +142,20 @@ class MintSheet:
         return names
 
     def _get_data(self, start_date):
+        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         data = []
         for sheet in self.config.google_sheets:
             sheet_names = self.convert_name(sheet.sheet_name)
             tab_names = self.convert_name(sheet.tab_name)
             for sheet_name in sheet_names:
                 for tab_name in tab_names:
-                    self.logger.debug("Connecting to tab '" + tab_name + "', on sheet '" + sheet_name + "'"
-                                      + " for " + sheet.billing_account)
+                    logger.debug("Connecting to tab '" + tab_name + "', on sheet '" + sheet_name + "'"
+                                 + " for " + sheet.billing_account)
                     try:
                         pickle_file = os.path.join(self.config.general_pickle_folder,
                                                    sheet.sheet_name + "_" + tab_name + ".pickle")
                         if self.config.debug_sheets_download:
-                            worksheet = MintSheet.get_sheet(self.g_spread, sheet_name, tab_name, self.logger)
+                            worksheet = MintSheet.get_sheet(self.g_spread, sheet_name, tab_name)
                             list_of_lists = worksheet.get_all_values()
                             with open(pickle_file, 'wb') as handle:
                                 cPickle.dump(list_of_lists, handle)
@@ -163,7 +166,7 @@ class MintSheet:
                         while True:
                             row_count += 1
                             deposit_amount, deposit_date = \
-                                MintSheet.get_row(self.logger, row_count, sheet.amount_col, sheet.date_col,
+                                MintSheet.get_row(row_count, sheet.amount_col, sheet.date_col,
                                                   list_of_lists, sheet.sheet_name, tab_name)
                             if deposit_date is None and deposit_amount is None:  # both are None
                                 break
@@ -179,8 +182,7 @@ class MintSheet:
                                         "row": str(row_count)
                                     })
                     except:
-                        self.logger.info("Tab " + tab_name + " on sheet " + sheet.sheet_name
-                                         + " does not exist... skipping")
+                        logger.info("Tab " + tab_name + " on sheet " + sheet.sheet_name + " does not exist... skipping")
         return data
 
 
@@ -188,7 +190,7 @@ def main():
     config = MintConfigFile("home.ini")
     start_date = datetime.datetime.strptime('08/01/2016', "%d/%m/%Y")
     mint_spread = MintSheet(config, start_date)
-    MintSheet.get_sheet(mint_spread.g_spread, "Transactions for West New Haven Plaza %Y", "test_tab %B", config.logger)
+    MintSheet.get_sheet(mint_spread.g_spread, "Transactions for West New Haven Plaza %Y", "test_tab %B")
     with open(config.debug_mint_pickle_file, 'rb') as handle:
         cPickle.load(handle)
         mint_transactions = cPickle.load(handle)
