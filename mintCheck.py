@@ -14,6 +14,8 @@ import time
 import logging
 from mintSheets import MintSheet
 import inspect
+import os
+
 
 # from datetime import datetime, date, time
 ########################################################################################################################
@@ -197,5 +199,6 @@ def main():
     logger.info("Done!")
 
 if __name__ == "__main__":
-    logging.config.fileConfig('logging.conf')
+    local_path = os.path.dirname(os.path.abspath(__file__))
+    logging.config.fileConfig(os.path.join(local_path,'logging.conf'))
     main()
