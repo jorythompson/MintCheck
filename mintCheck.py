@@ -184,10 +184,11 @@ def main():
             message += line + "<br>"
             logger.critical(line)
         message += "\n Log information:\n"
-        for handler in logger.handlers:
-            if "rotatingfilehandler" in handler.__name__:
+        for handler in logging.root.handlers:
+            if handler.baseFilename is not None:
                 with open(handler.baseFilename, 'r') as f:
                     data = f.read().replace("\n", "<br>")
+                break
         message += data
         email_sender = EmailSender(mint_check.config.email_connection)
         for email_to in mint_check.config.general_exceptions_to:
