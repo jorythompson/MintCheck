@@ -5,6 +5,8 @@ from email.MIMEText import MIMEText
 import ConfigParser
 import logging
 import inspect
+from email.mime.application import MIMEApplication
+from os.path import basename
 
 
 class EmailConnection:
@@ -28,7 +30,7 @@ class EmailSender:
     def __init__(self, email_connection):
         self.email_connection = email_connection
 
-    def send(self, to_email, subject, message, cc=None):
+    def send(self, to_email, subject, message, cc=None, attach_file=None):
         logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         msg = MIMEMultipart('alternative')
         msg['From'] = self.email_connection.from_user
@@ -41,6 +43,11 @@ class EmailSender:
             msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(message, "html"))
+        if attach_file is not None:
+            with open (attach_file, "rb") as fp:
+                part = MIMEApplication(fp.read(), Name=basename(attach_file))
+            part['Content-Disposition'] = 'attachment; filename="%s"' % basename(attach_file)
+            msg.attach(part)
 
         try:
             server = smtplib.SMTP("smtp.gmail.com", 587)

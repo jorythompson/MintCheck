@@ -32,10 +32,6 @@ class MintSheet:
     def get_sheet(g_spread, sheet_name, tab_name, new_owner=None):
         logger = logging.getLogger(inspect.stack()[0][3])
         worksheet = None
-        if "%" in sheet_name:
-            sheet_name = datetime.datetime.now().strftime(sheet_name)
-        if "%" in tab_name:
-            tab_name = datetime.datetime.now().strftime(tab_name)
         try:
             logger.debug("trying to open sheet '" + sheet_name + "'")
             worksheet = g_spread.open(sheet_name)
@@ -64,7 +60,11 @@ class MintSheet:
                                     email_message="Just created this sheet")
             except:
                 pass
-            return worksheet.worksheet(tab_name)
+            try:
+                tab = worksheet.worksheet(tab_name)
+            except:
+                tab = None
+            return tab
         except:
             logger.debug("failed trying to open tab '" + tab_name + "' on sheet '" + sheet_name + "'")
             if new_owner is None:
@@ -182,7 +182,7 @@ class MintSheet:
                                         "row": str(row_count)
                                     })
                     except:
-                        logger.info("Tab " + tab_name + " on sheet " + sheet.sheet_name + " does not exist... skipping")
+                        logger.info("Tab " + tab_name + " on sheet " + sheet_name + " does not exist... skipping")
         return data
 
 

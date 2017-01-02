@@ -11,6 +11,8 @@ from datetime import datetime, date, time, timedelta
 import os
 import logging
 import inspect
+import thompco_utils
+
 
 BORDER_STYLE = "border-bottom:1px solid black"
 
@@ -306,7 +308,7 @@ class PrettyPrint:
         accounts = []
         logger.info("assembling account lists")
         for account in self.accounts.accounts:
-            for account_name in user.accounts:
+            for account_name in user.active_accounts:
                 if (account_name == "all" or account_name == account["name"]) \
                         and self.config.mint_ignore_accounts not in account["name"] \
                         and account not in accounts:
@@ -534,10 +536,14 @@ class PrettyPrint:
                     email_sender = EmailSender(self.config.email_connection)
                     for email in user.email:
                         logger.debug("Sending email to " + email)
+                        if email.lower() == self.config.general_admin_email.lower() and self.config.debug_attach_log:
+                            log_file =thompco_utils.get_log_file_name()
+                        else:
+                            log_file = None
                         if self.config.debug_copy_admin:
                             cc = self.config.general_admin_email
                         else:
                             cc = None
-                        email_sender.send(email, user.subject, message, cc)
+                        email_sender.send(email, user.subject, message, cc, attach_file=log_file)
                 else:
                     logger.debug("Not sending emails")

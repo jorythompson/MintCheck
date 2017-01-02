@@ -55,6 +55,7 @@ DEBUG_DEBUGGING = "debugging"
 DEBUG_COPY_ADMIN = "copy_admin"
 DEBUG_SAVE_HTML = "save_html"
 DEBUG_SEND_EMAIL = "send_email"
+DEBUG_ATTACH_LOG = "attach_log"
 
 COLORS_TITLE = "colors"
 ACCOUNT_TYPES_TITLE = "account_types"
@@ -185,11 +186,6 @@ class MintUser:
         except Exception:
             missing_entry(name, USER_RENAME_INSTITUTION, config.file_name, "")
             self.rename_institutions = {}
-        try:
-            self.accounts = ast.literal_eval("[" + config.config.get(name, USER_ACCOUNTS) + "]")
-        except Exception:
-            missing_entry(name, USER_ACCOUNTS, config.file_name, "")
-            self.accounts = {}
         self.active_accounts = ast.literal_eval("[" + config.config.get(name, USER_ACTIVE_ACCOUNTS) + "]")
 
     def dump(self):
@@ -197,7 +193,6 @@ class MintUser:
         dump_config_value(USER_EMAIL, self.email)
         dump_config_value(USER_SUBJECT, self.subject)
         dump_config_value(USER_ACTIVE_ACCOUNTS, self.active_accounts)
-        dump_config_value(USER_ACCOUNTS, self.accounts)
         dump_config_value(USER_FREQUENCY, self.frequency)
         dump_config_value(USER_RENAME_ACCOUNT, self.rename_accounts)
         dump_config_value(USER_RENAME_INSTITUTION, self.rename_institutions)
@@ -344,6 +339,11 @@ class MintConfigFile:
         except Exception:
             self.debug_send_email = True
             missing_entry(DEBUG_TITLE, DEBUG_SEND_EMAIL, file_name, self.debug_send_email)
+        try:
+            self.debug_attach_log = self.config.getboolean(DEBUG_TITLE, DEBUG_ATTACH_LOG)
+        except Exception:
+            self.debug_attach_log = False
+            missing_entry(DEBUG_TITLE, DEBUG_ATTACH_LOG, file_name, self.debug_attach_log)
         try:
             self.debug_mint_pickle_file = self.config.get(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE)
         except Exception:

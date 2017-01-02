@@ -15,7 +15,7 @@ import logging
 from mintSheets import MintSheet
 import inspect
 import os
-
+import thompco_utils
 
 # from datetime import datetime, date, time
 ########################################################################################################################
@@ -153,7 +153,6 @@ class MintCheck:
                 self.accounts = cPickle.load(handle)
                 self.mint_transactions = cPickle.load(handle)
 
-
 def main():
     mint_check = MintCheck()
     logger = logging.getLogger(inspect.stack()[0][3])
@@ -184,22 +183,20 @@ def main():
             message += line + "<br>"
             logger.critical(line)
         message += "\n Log information:\n"
-        for handler in logging.root.handlers:
-            if handler.baseFilename is not None:
-                with open(handler.baseFilename, 'r') as f:
-                    data = f.read().replace("\n", "<br>")
-                break
-        message += data
         email_sender = EmailSender(mint_check.config.email_connection)
         for email_to in mint_check.config.general_exceptions_to:
             if mint_check.config.debug_copy_admin:
                 cc = mint_check.config.general_admin_email
             else:
                 cc = None
-            email_sender.send(email_to, "Exception caught in MintCheck", message, cc)
+            email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message, cc=cc,
+                              attach_file=thompco_utils.get_log_file_name())
     logger.info("Done!")
 
 if __name__ == "__main__":
     local_path = os.path.dirname(os.path.abspath(__file__))
-    logging.config.fileConfig(os.path.join(local_path,'logging.conf'))
+    log_configuration_file = os.path.join(local_path, 'logging.conf')
+    logging.config.fileConfig(log_configuration_file)
+    logger = logging.getLogger(inspect.stack()[0][3])
+    logger.info("Getting logging configuration from:" + log_configuration_file)
     main()

@@ -9,6 +9,8 @@ from dateutil import parser
 import ast
 import logging
 import inspect
+import os
+
 
 class MintCheckerDeposit:
     def __init__(self):
@@ -100,5 +102,6 @@ def main():
     mcd.update_sheet()
 
 if __name__ == "__main__":
-    logging.config.fileConfig('logging.conf')
+    local_path = os.path.dirname(os.path.abspath(__file__))
+    logging.config.fileConfig(os.path.join(local_path,'logging.conf'))
     main()
