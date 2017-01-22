@@ -424,6 +424,7 @@ class PrettyPrint:
                 with tags.table(rules="cols", frame="box", align="center"):
                     with tags.thead(style=BORDER_STYLE):
                         tags.th("Reference")
+                        tags.th("Notes")
                         tags.th("Deposit Account")
                         tags.th("Expected Deposit Date")
                         tags.th("Actual Deposit Date")
@@ -437,6 +438,7 @@ class PrettyPrint:
                             actual_deposit_date = deposit["actual_deposit_date"].strftime("%a, %b %d")
                         with tags.tr(style="color:" + color):
                             tags.td(deposit["billing_account"])
+                            tags.td(deposit["notes"])
                             tags.td(deposit["deposit_account"])
                             tags.td(deposit["expected_deposit_date"].strftime("%a, %b %d"))
                             tags.td(actual_deposit_date)

@@ -92,9 +92,9 @@ class MintSheet:
         logger.debug("getting row #" + str(row) + " on tab '" + tab_name
                      + "', on sheet '" + sheet_name + "'")
         try:
-            deposit_cell = list_of_lists[row - 1][MintSheet.col2num(date_col) - 1]
-            logger.debug("Got deposit date string of '" + deposit_cell + "'")
-            deposit_date = parser.parse(deposit_cell)
+            cell = list_of_lists[row - 1][MintSheet.col2num(date_col) - 1]
+            logger.debug("Got deposit date string of '" + cell + "'")
+            deposit_date = parser.parse(cell)
         except Exception as e:
             logger.debug("Could not get deposit date from cell [" + date_col + ":" + str(row) + "]"
                          + "in sheet '" + sheet_name + "' on tab '" + tab_name
@@ -102,9 +102,9 @@ class MintSheet:
                          + "  Exception was:' " + e.message + "'")
             deposit_date = None
         try:
-            amount_cell = list_of_lists[row - 1][MintSheet.col2num(amount_col) - 1]
-            logger.debug("Got deposit amount string of '" + amount_cell + "'")
-            deposit_amount = MintSheet.dollars2float(amount_cell)
+            cell = list_of_lists[row - 1][MintSheet.col2num(amount_col) - 1]
+            logger.debug("Got deposit amount string of '" + cell + "'")
+            deposit_amount = MintSheet.dollars2float(cell)
         except Exception as e:
             logger.debug("Could not get deposit amount from cell [" + amount_col + ":" + str(row) + "]"
                          + "in sheet '" + sheet_name + "' on tab '" + tab_name
@@ -119,7 +119,7 @@ class MintSheet:
             data["actual_deposit_date"] = None
             appended = False
             for transaction in mint_transactions.transactions:
-                if "all" in user.accounts or data["deposit_account"] in user.accounts:
+                if "all" in user.active_accounts or data["deposit_account"] in user.active_accounts:
                     if not appended:
                         rtn.append(data)
                         appended = True
@@ -171,9 +171,10 @@ class MintSheet:
                             if deposit_date is None and deposit_amount is None:  # both are None
                                 break
                             elif deposit_date is not None and deposit_amount is not None:  # neither is None
-                                if deposit_date > start_date - datetime.timedelta(sheet.day_error):
+                                if deposit_date >= (start_date - datetime.timedelta(sheet.day_error)):
                                     data.append({
                                         "billing_account": sheet.billing_account,
+                                        "notes": sheet.notes_col,
                                         "expected_deposit_date": deposit_date,
                                         "date_error": sheet.day_error,
                                         "deposit_amount": deposit_amount,

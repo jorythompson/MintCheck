@@ -12,6 +12,7 @@ from emailSender import EmailSender
 from random import randint
 import time
 import logging
+import logging.config
 from mintSheets import MintSheet
 import inspect
 import os
@@ -108,8 +109,8 @@ class MintCheck:
             start_date = now + relativedelta(months=-1)
             frequency = "monthly"
         elif week_start == today and "biweekly" in frequencies_needed \
-                and ((now.day>=month_start+7 and now.day<month_start+14)
-                     or (now.day>=month_start+21 and now.day<month_start+28)):
+                and ((month_start+7 <= now.day < month_start+14)
+                     or (month_start+21 <= now.day < month_start+28)):
             start_date = now + relativedelta(days=-14)
             frequency = "biweekly"
         elif today == week_start and "weekly" in frequencies_needed:
@@ -153,7 +154,13 @@ class MintCheck:
                 self.accounts = cPickle.load(handle)
                 self.mint_transactions = cPickle.load(handle)
 
+
 def main():
+    local_path = os.path.dirname(os.path.abspath(__file__))
+    log_configuration_file = os.path.join(local_path, 'logging.conf')
+    logging.config.fileConfig(log_configuration_file)
+    logger = logging.getLogger(inspect.stack()[0][3])
+    logger.info("Getting logging configuration from:" + log_configuration_file)
     mint_check = MintCheck()
     logger = logging.getLogger(inspect.stack()[0][3])
     try:
@@ -194,9 +201,4 @@ def main():
     logger.info("Done!")
 
 if __name__ == "__main__":
-    local_path = os.path.dirname(os.path.abspath(__file__))
-    log_configuration_file = os.path.join(local_path, 'logging.conf')
-    logging.config.fileConfig(log_configuration_file)
-    logger = logging.getLogger(inspect.stack()[0][3])
-    logger.info("Getting logging configuration from:" + log_configuration_file)
     main()

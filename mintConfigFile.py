@@ -148,7 +148,7 @@ class GoogleSheet:
         dump_config_value(SHEETS_TITLE, self.billing_account)
         dump_config_value(SHEETS_NAME, self.sheet_name)
         dump_config_value(SHEETS_AMOUNT_COL, self.amount_col)
-        dump_config_value(SHEETS_NOTES_COL, self.notes_col)
+        dump_config_value(SHEETS_NOTES_COL, self.notes)
         dump_config_value(SHEETS_DATE_COL, self.date_col)
         dump_config_value(SHEETS_START_ROW, self.start_row)
         dump_config_value(SHEETS_DEPOSIT_ACCOUNT, self.deposit_account)

@@ -10,11 +10,12 @@ import ast
 import logging
 import inspect
 import os
-
+import sys
 
 class MintCheckerDeposit:
     def __init__(self):
         logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger.debug("Arguments passed in as follows:" + str(sys.argv))
         self.now = datetime.datetime.combine(datetime.date.today(), datetime.time())
         self.args = self._get_args()
         self.config = MintConfigFile(self.args.config, test_email=self.args.validate_emails,
@@ -51,7 +52,11 @@ class MintCheckerDeposit:
             notes = ast.literal_eval(str(self.args.notes))
             amounts = self.args.amounts
             while ",," in amounts:
-                amounts = amounts.replace(",,", ",None,")
+                amounts = amounts.replace(",,", ",0,")
+            if amounts.startswith(","):
+                amounts = "0" + amounts
+            if amounts.endswith(","):
+                amounts += "0"
             amounts = ast.literal_eval(amounts)
             if len(amounts) != len(notes):
                 raise RuntimeError("Number of elements in payors and amounts should be the same")
@@ -65,7 +70,8 @@ class MintCheckerDeposit:
             for sheet in self.config.google_sheets:
                 if sheet.deposit_account == self.args.deposit_account:
                     logger.debug("found tab as " + self.args.deposit_account)
-                    worksheet = MintSheet.get_sheet(self.g_spread, sheet.sheet_name, sheet.tab_name,
+                    worksheet = MintSheet.get_sheet(self.g_spread, datetime.datetime.now().strftime(sheet.sheet_name),
+                                                    datetime.datetime.now().strftime(sheet.tab_name),
                                                     self.config.general_admin_email)
                     list_of_lists = worksheet.get_all_values()
                     row_count = sheet.start_row - 1
@@ -76,7 +82,7 @@ class MintCheckerDeposit:
                                               sheet.sheet_name, self.args.deposit_account)
                         if deposit_date is None and deposit_amount is None:  # both are None
                             for entry in range(0, len(amounts)):
-                                if amounts[entry] is not None:
+                                if amounts[entry] != 0:
                                     val = locale.currency(amounts[entry], grouping=True)
                                     logger.debug("setting cell(" + sheet.amount_col + str(row_count) + ") to " + val)
                                     worksheet.update_cell(row=row_count, col=MintSheet.col2num(sheet.amount_col),
