@@ -1,20 +1,23 @@
 from datetime import date, datetime
 import inspect
 import logging
+import re
 
 
 def clean_dictionary(name, obj):
     logger = logging.getLogger(inspect.stack()[0][3])
     logger.debug(name + " before:")
     logger.debug(str(obj))
-    for transaction in obj:
-        for key in transaction:
-            clean_key = str(key)
-            transaction[clean_key] = transaction.pop(key)
-            transaction[clean_key] = str(transaction[clean_key])
-            transaction[clean_key] = parse_all(clean_key, transaction[clean_key])
-    logger.debug(name + " after:")
-    logger.debug(str(obj))
+    try:
+        for transaction in obj:
+            for key in transaction:
+                clean_key = to_string(key)
+                transaction[clean_key] = transaction.pop(key)
+                transaction[clean_key] = to_string(transaction[clean_key])
+                transaction[clean_key] = parse_all(clean_key, transaction[clean_key])
+        logger.debug(to_string(obj))
+    except Exception as e:
+        raise e
     return obj
 
 DATE_STRING_FIELDS = [
@@ -52,7 +55,7 @@ def date_convert(dateraw):
 
 
 def parse_all(key, val):
-    this_type = str(type(val))
+    this_type = to_string(type(val))
     if key in DATE_STRING_FIELDS:
         try:
             val = datetime.strptime(val, "%m/%d/%Y")
@@ -63,12 +66,12 @@ def parse_all(key, val):
             val = datetime.fromtimestamp(val / 1e3)
         except:
             val = None
-    elif str(key) in MONTH_ONLY_DATE_FIELDS:
+    elif to_string(key) in MONTH_ONLY_DATE_FIELDS:
         try:
             val = date_convert(val)
         except:
             val = None
-    elif str(key) in DOLLAR_FIELDS:
+    elif to_string(key) in DOLLAR_FIELDS:
         try:
             val = float(val.replace("$", "").replace(",", ""))
         except:
@@ -78,7 +81,7 @@ def parse_all(key, val):
     elif val == "True":
         val = True
     elif "'unicode'" in this_type:
-        val = str(val)
+        val = to_string(val)
     return val
 
 
@@ -95,7 +98,7 @@ class MintTransactions:
         for transaction in self.transactions:
             logger.debug("Dumping Transaction")
             for key in transaction:
-                logger.debug("\t\t" + key + ":" + str(transaction[key]))
+                logger.debug("\t\t" + key + ":" + to_string(transaction[key]))
 
     def get_financial_institutions(self, start_date):
         fis = []
@@ -159,4 +162,11 @@ class MintAccounts:
         for account in self.accounts:
             logger.debug("Dumping " + account["name"])
             for key in account:
-                logger.debug("\t\t" + key + ":" + str(account[key]))
+                logger.debug("\t\t" + key + ":" + to_string(account[key]))
+
+
+def to_string(obj):
+    if isinstance(obj, basestring):
+        return re.sub(r'[^\x00-\x7f]',r'', obj)
+    else:
+        return str(obj)

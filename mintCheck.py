@@ -62,7 +62,14 @@ class MintCheck:
                 logger.debug("Reconnecting to Mint...")
                 mint = self.connect()
             logger.info("getting accounts...")
-            self.accounts = mintObjects.MintAccounts(mint.get_accounts(get_detail=True))
+            if True:  # saves the raw mint data and stores it in a local file before proceeding
+                accounts = mint.get_accounts(get_detail=True)
+                # with open("raw_accounts.pkl", 'wb') as handle:
+                #    cPickle.dump(accounts, handle)
+            else:  # reads raw mint data from a local file
+                with open("raw_accounts.pkl", 'rb') as handle:
+                    accounts = cPickle.load(handle)
+            self.accounts = mintObjects.MintAccounts(accounts)
             logger.info("Getting transactions...")
             self.mint_transactions = mintObjects.MintTransactions(
                 mint.get_transactions_json(include_investment=False, skip_duplicates=self.config.mint_remove_duplicates,
@@ -196,8 +203,11 @@ def main():
                 cc = mint_check.config.general_admin_email
             else:
                 cc = None
-            email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message, cc=cc,
-                              attach_file=thompco_utils.get_log_file_name())
+            try:
+                email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message, cc=cc,
+                                  attach_file=thompco_utils.get_log_file_name())
+            except:
+                email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message, cc=cc)
     logger.info("Done!")
 
 if __name__ == "__main__":

@@ -48,9 +48,10 @@ USER_RENAME_INSTITUTION = "rename_institution"
 LOCALE_TITLE = "locale"
 
 DEBUG_TITLE = "debug"
-DEBUG_MINT_DOWNLOAD = "mint_download"
-DEBUG_SHEETS_DOWNLOAD = "sheets_download"
+DEBUG_MINT_DOWNLOAD = "download_mint"
+DEBUG_SHEETS_DOWNLOAD = "download_sheets"
 DEBUG_MINT_PICKLE_FILE = "mint_pickle_file"
+ACCOUNTS_PICKLE_FILE = "accounts_pickle_file"
 DEBUG_DEBUGGING = "debugging"
 DEBUG_COPY_ADMIN = "copy_admin"
 DEBUG_SAVE_HTML = "save_html"
@@ -349,10 +350,16 @@ class MintConfigFile:
         except Exception:
             self.debug_mint_pickle_file = "mint.pickle"
             missing_entry(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE, file_name, "")
+        try:
+            self.previous_accounts_pickle_file = self.config.get(DEBUG_TITLE, ACCOUNTS_PICKLE_FILE)
+        except Exception:
+            self.previous_accounts_pickle_file = "accounts.pickle"
+            missing_entry(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE, file_name, "")
         pickle_path = os.path.join(self.current_dir, self.general_pickle_folder)
         if not os.path.exists(pickle_path):
             os.makedirs(pickle_path)
         self.debug_mint_pickle_file = os.path.join(pickle_path, self.debug_mint_pickle_file)
+        self.previous_accounts_pickle_file = os.path.join(pickle_path, self.previous_accounts_pickle_file)
         try:
             self.debug_debugging = self.config.getboolean(DEBUG_TITLE, DEBUG_DEBUGGING)
         except Exception:
