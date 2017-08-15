@@ -170,44 +170,53 @@ def main():
     logger.info("Getting logging configuration from:" + log_configuration_file)
     mint_check = MintCheck()
     logger = logging.getLogger(inspect.stack()[0][3])
-    try:
-        if mint_check.args.live:
-            sleep_time = randint(0, 60 * mint_check.config.general_sleep)
-            logger.info("Waiting a random time so we don't connect to Mint at the same time every day."
-                        + "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') + " for "
-                        + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds')
-                        + ", waking at "
-                        + (datetime.datetime.now() + datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
-            time.sleep(sleep_time)
-        mint_check.collect_and_send()
-    except Exception:
-        logger.critical("Exception caught!")
-        type_, value_, traceback_ = sys.exc_info()
-        traceback.print_exc()
-        tb = traceback.format_exception(type_, value_, traceback_)
-        for line in tb:
-            logger.critical(line)
-        logger.critical("Last exception follows:")
-        type_, value_, traceback_ = sys.exc_info()
-        traceback.print_exc()
-        message = "<html>"
-        message += "<b><center>Problem with Mint Checker</center></b><br>"
-        tb = traceback.format_exception(type_, value_, traceback_)
-        for line in tb:
-            message += line + "<br>"
-            logger.critical(line)
-        message += "\n Log information:\n"
-        email_sender = EmailSender(mint_check.config.email_connection)
-        for email_to in mint_check.config.general_exceptions_to:
-            if mint_check.config.debug_copy_admin:
-                cc = mint_check.config.general_admin_email
+    # There is a problem with the api and occasionally needs to be run multiple times before working!
+    max_try_count = 10
+    for try_count in range(1, max_try_count):
+        try:
+            if mint_check.args.live:
+                sleep_time = randint(0, 60 * mint_check.config.general_sleep)
+                logger.info("Waiting a random time so we don't connect to Mint at the same time every day."
+                            + "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') + " for "
+                            + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds')
+                            + ", waking at "
+                            + (datetime.datetime.now() + datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
+                time.sleep(sleep_time)
+            mint_check.collect_and_send()
+            break
+        except Exception:
+            logger.critical("Exception caught!")
+            type_, value_, traceback_ = sys.exc_info()
+            traceback.print_exc()
+            tb = traceback.format_exception(type_, value_, traceback_)
+            for line in tb:
+                logger.critical(line)
+            logger.critical("Last exception follows:")
+            type_, value_, traceback_ = sys.exc_info()
+            traceback.print_exc()
+            message = "<html>"
+            message += "<b><center>Problem with Mint Checker</center></b><br>"
+            tb = traceback.format_exception(type_, value_, traceback_)
+            for line in tb:
+                message += line + "<br>"
+                logger.critical(line)
+            message += "\nLog information:\n"
+            email_sender = EmailSender(mint_check.config.email_connection)
+            if try_count < max_try_count:
+                message += "\nTrying to communicate with Mint again"
             else:
-                cc = None
-            try:
-                email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message, cc=cc,
-                                  attach_file=thompco_utils.get_log_file_name())
-            except:
-                email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message, cc=cc)
+                message += "\nMax Try Count (" + str(max_try_count) + ") exceeded, giving up"
+            for email_to in mint_check.config.general_exceptions_to:
+                if mint_check.config.debug_copy_admin:
+                    cc = mint_check.config.general_admin_email
+                else:
+                    cc = None
+                try:
+                    email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message,
+                                      cc=cc, attach_file=thompco_utils.get_log_file_name())
+                except:
+                    email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message,
+                                      cc=cc)
     logger.info("Done!")
 
 if __name__ == "__main__":
