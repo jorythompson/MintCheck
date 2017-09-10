@@ -1,6 +1,6 @@
 import sys
 import traceback
-import mintapi
+import mintapi.mintapi as mintapi
 import mintObjects
 import mintReport
 import argparse
