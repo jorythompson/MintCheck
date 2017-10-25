@@ -333,12 +333,12 @@ class PrettyPrint:
                         tags.tr(style=BORDER_STYLE)
                     total = 0
                     handled_accounts = []
+                    color_style = ""
                     for account in accounts:
                         if account["currentBalance"] > 0 \
                                 and not account["isClosed"] \
                                 and not account["name"] in handled_accounts:
                             handled_accounts.append(account["name"])
-                            color_style = ""
                             if account["accountType"] == "bank":
                                 color_style = ";color:" + self.config.account_type_bank_fg
                             elif account["accountType"] == "credit":
@@ -372,8 +372,7 @@ class PrettyPrint:
                                                     paid_from["mint credit account"] = account
                                                     debit_accounts.append(paid_from)
                                                 break
-                                        if not paid_noted and account["accountType"] == "credit" \
-                                                and next_payment_date is not None and next_payment_date >= self.now:
+                                        if not paid_noted:
                                             missing_debit_accounts.append(account)
                                         if debit_account is None:
                                             tags.td("N/A", align="center")
@@ -500,7 +499,7 @@ class PrettyPrint:
                             tags.td(account['fiName'])
                             tags.td(account['accountName'])
             if len(missing_accounts) > 0:
-                tags.h1("Missing Accounts", align="center")
+                tags.h1("Missing Accounts to Debit From", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
                     with tags.thead(style=BORDER_STYLE):
                         tags.th("Financial Institution")

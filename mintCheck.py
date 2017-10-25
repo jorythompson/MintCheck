@@ -184,39 +184,40 @@ def main():
                 time.sleep(sleep_time)
             mint_check.collect_and_send()
             break
-        except Exception:
-            logger.critical("Exception caught!")
-            type_, value_, traceback_ = sys.exc_info()
-            traceback.print_exc()
-            tb = traceback.format_exception(type_, value_, traceback_)
-            for line in tb:
-                logger.critical(line)
-            logger.critical("Last exception follows:")
-            type_, value_, traceback_ = sys.exc_info()
-            traceback.print_exc()
-            message = "<html>"
-            message += "<b><center>Problem with Mint Checker</center></b><br>"
-            tb = traceback.format_exception(type_, value_, traceback_)
-            for line in tb:
-                message += line + "<br>"
-                logger.critical(line)
-            message += "\nLog information:\n"
-            email_sender = EmailSender(mint_check.config.email_connection)
-            if try_count < max_try_count:
-                message += "\nTrying to communicate with Mint again"
-            else:
-                message += "\nMax Try Count (" + str(max_try_count) + ") exceeded, giving up"
-            for email_to in mint_check.config.general_exceptions_to:
-                if mint_check.config.debug_copy_admin:
-                    cc = mint_check.config.general_admin_email
+        except Exception as e:
+            if "Session has expired" not in e.message:
+                logger.critical("Exception caught!")
+                type_, value_, traceback_ = sys.exc_info()
+                traceback.print_exc()
+                tb = traceback.format_exception(type_, value_, traceback_)
+                for line in tb:
+                    logger.critical(line)
+                logger.critical("Last exception follows:")
+                type_, value_, traceback_ = sys.exc_info()
+                traceback.print_exc()
+                message = "<html>"
+                message += "<b><center>Problem with Mint Checker</center></b><br>"
+                tb = traceback.format_exception(type_, value_, traceback_)
+                for line in tb:
+                    message += line + "<br>"
+                    logger.critical(line)
+                message += "\nLog information:\n"
+                email_sender = EmailSender(mint_check.config.email_connection)
+                if try_count < max_try_count:
+                    message += "\nTrying to communicate with Mint again"
                 else:
-                    cc = None
-                try:
-                    email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message,
-                                      cc=cc, attach_file=thompco_utils.get_log_file_name())
-                except:
-                    email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message,
-                                      cc=cc)
+                    message += "\nMax Try Count (" + str(max_try_count) + ") exceeded, giving up"
+                for email_to in mint_check.config.general_exceptions_to:
+                    if mint_check.config.debug_copy_admin:
+                        cc = mint_check.config.general_admin_email
+                    else:
+                        cc = None
+                    try:
+                        email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message,
+                                          cc=cc, attach_file=thompco_utils.get_log_file_name())
+                    except:
+                        email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message,
+                                          cc=cc)
     logger.info("Done!")
 
 if __name__ == "__main__":
