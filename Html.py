@@ -1,6 +1,6 @@
 import abc
 import copy
-SPACER = "  "
+SPACER = '  '
 
 
 class HtmlItem(object):
@@ -24,7 +24,7 @@ class Html:
         rtn += '{}<style>\n'.format(SPACER)
         for html_item in self.__html_items:
             style = html_item.get_style(depth=2)
-            if style.strip() != "":
+            if style.strip() != '':
                 rtn += html_item.get_style(depth=2) + '\n'
         rtn += '{}</style>\n'.format(SPACER)
         for html_item in self.__html_items:
@@ -36,28 +36,52 @@ class Html:
         if issubclass(html_item.__class__, HtmlItem):
             self.__html_items.append(html_item)
         else:
-            raise Exception("object is not a HtmlItem")
+            raise Exception('object is not a HtmlItem')
+
+
+class HtmlFooter(HtmlItem):
+    def __init__(self, html_items):
+        for html_item in html_items:
+            if not issubclass(html_item.__class__, HtmlItem):
+                raise Exception('object is not a HtmlItem')
+        self.html_items = html_items
+
+    def get_style(self, depth):
+        rtn = ''
+        for html_item in self.html_items:
+            rtn += html_item.get_body() + '\n'
+        return rtn
+
+    def get_body(self, depth):
+        rtn = '<footer>\n'
+        for html_item in self.html_items:
+            rtn += html_item.get_body() + '\n'
+        rtn += '</footer>\n'
+        return rtn
 
 
 class HtmlList(HtmlItem):
     def __init__(self, html_items, ordered=True):
         for html_item in html_items:
             if not issubclass(html_item.__class__, HtmlItem):
-                raise Exception("object is not a HtmlItem")
-        self.items = html_items
+                raise Exception('object is not a HtmlItem')
+        self.html_items = html_items
         self.ordered = ordered
 
     def get_style(self, depth):
-        return ""
+        rtn = ''
+        for item in self.html_items:
+            rtn += item.get_style()
+        return rtn
 
     def get_body(self, depth):
-        rtn = ""
-        for item in self.items:
-            rtn += "{}<li>{}</li>\n".format(SPACER * (depth + 1), item.get_body(0))
+        rtn = ''
+        for item in self.html_items:
+            rtn += '{}<li>{}</li>\n'.format(SPACER * (depth + 1), item.get_body(0))
         if self.ordered:
-            rtn = "{}<ol>\n{}{}</ol>".format(SPACER * depth, rtn, SPACER * (depth + 1))
+            rtn = '{}<ol>\n{}{}</ol>'.format(SPACER * depth, rtn, SPACER * (depth + 1))
         else:
-            rtn = "{}<ul>\n{}{}</ul>".format(SPACER * depth, rtn, SPACER * (depth + 1))
+            rtn = '{}<ul>\n{}{}</ul>'.format(SPACER * depth, rtn, SPACER * (depth + 1))
         return rtn
 
 
@@ -73,7 +97,7 @@ class HtmlText(HtmlItem):
         self.font = font
 
     def get_style(self, depth):
-        return ""
+        return ''
 
     def get_body(self, depth):
         if self.font is None:
@@ -113,7 +137,7 @@ class HtmlTable(HtmlItem):
         self.data.append(row)
 
     def get_style(self, depth):
-        rtn = ""
+        rtn = ''
         rtn += '{}table {{\n'.format(SPACER * depth)
         if self.font_family is not None:
             rtn += '{}font-family: {};\n'.format(SPACER * (depth + 1), self.font_family)
@@ -133,7 +157,7 @@ class HtmlTable(HtmlItem):
         return rtn
 
     def get_body(self, depth):
-        rtn = ""
+        rtn = ''
         rtn += '{}<table>\n'.format(SPACER * depth)
         if self.column_headings is not None:
             rtn += '{}<tr>\n'.format(SPACER * (depth + 1))
@@ -144,13 +168,13 @@ class HtmlTable(HtmlItem):
         for row in self.data:
             rtn += '{}<tr>\n'.format(SPACER * (depth + 1))
             for cell in row:
-                bg_color = ""
+                bg_color = ''
                 if line_number % 2:
                     if self.even_background_color:
-                        bg_color = " bgcolor={}".format(self.even_background_color)
+                        bg_color = ' bgcolor={}'.format(self.even_background_color)
                 else:
                     if self.odd_background_color:
-                        bg_color = " bgcolor={}".format(self.odd_background_color)
+                        bg_color = ' bgcolor={}'.format(self.odd_background_color)
                 rtn += '{}<td{}>{}</td>\n'.format(SPACER * (depth + 2), bg_color, cell)
             rtn += '{}</tr>\n'.format(SPACER * (depth + 1))
             line_number += 1
@@ -158,16 +182,71 @@ class HtmlTable(HtmlItem):
         return rtn
 
 
-class Link(HtmlItem):
+class HtmlBreak(HtmlItem):
+    def __init__(self):
+        pass
+
+    def get_style(self, depth):
+        return ''
+
+    def get_body(self, depth):
+        return '{}<br>'.format(SPACER * depth)
+
+
+class HtmlLine(HtmlItem):
+    def __init__(self):
+        pass
+
+    def get_style(self, depth):
+        return ''
+
+    def get_body(self, depth):
+        return '<hr>'
+
+
+class HtmlImage(HtmlItem):
+    def __init__(self, image, alt_text=None, height=None, width=None):
+        self.image = image
+        self.alt_text = alt_text
+        self.height = height
+        self.width = width
+
+    def get_style(self, depth):
+        return ''
+
+    def get_body(self, depth):
+        if self.alt_text:
+            alt_text = ' alt="{}"'.format(self.alt_text)
+        else:
+            alt_text = ''
+        if self.height:
+            height = ' height="{}"'.format(self.height)
+        else:
+            height = ''
+        if self.width:
+            width = ' width="{}"'.format(self.width)
+        else:
+            width = ''
+        return '<img src="{}"{}{}{}>'.format(self.image, alt_text, height, width)
+
+
+class HtmlLink(HtmlItem):
     def __init__(self, link, text):
         self.link = link
         self.text = text
 
     def get_style(self, depth):
-        return ""
+        return ''
 
     def get_body(self, depth):
-        return "{}<a href={}>{}</a>".format(SPACER * depth, self.link, self.text)
+        return '{}<a href="{}">{}</a>'.format(SPACER * depth, self.link, self.text)
+
+
+class HtmlMailTo(HtmlLink):
+    def __init__(self, email, user_name):
+        super(HtmlLink, self).__init__()
+        self.link = 'mailto:{}'.format(email)
+        self.text = user_name
 
 
 class Font:
@@ -184,34 +263,34 @@ class Font:
             rtn += ' color="{}"'.format(self.color)
         if self.face is not None:
             rtn += ' face="{}"'.format(self.face)
-        rtn += ">" + text + "</font>"
+        rtn += '>{}</font>'.format(text)
         return rtn
 
 
 def main():
     with open('D:\\temp\\test.html', 'w') as the_file:
         html = Html()
-        values = [HtmlText("first", bold=True), HtmlText("second"), HtmlText("third")]
+        values = [HtmlText('first', bold=True), HtmlText('second'), HtmlText('third')]
         ol = HtmlList(values)
         html.append(ol)
         ul = HtmlList(values, ordered=False)
         html.append(ul)
-        text = HtmlText("this is some text")
-        red = Font(color="red")
+        text = HtmlText('this is some text')
+        red = Font(color='red')
         text.font = red
         red.size = 10
-        red.face = "verdana"
-        ol.items.append(copy.deepcopy(text))
+        red.face = 'verdana'
+        ol.html_items.append(copy.deepcopy(text))
         html.append(ol)
         text.paragraph = True
-        text.font.color = "blue"
+        text.font.color = 'blue'
         html.append(copy.deepcopy(text))
         text.font.size = None
         text.heading_level = 5
         html.append(copy.deepcopy(text))
-        text.font.color="green"
+        text.font.color = 'green'
         html.append(copy.deepcopy(text))
-        headings = ["AAAA", "BBBB", "CCCC"]
+        headings = ['AAAA', 'BBBB', 'CCCC']
         data = [['a1', 'b1', 'c1'],
                 ['a2', 'b2', 'c2'],
                 ['a3', 'b3', 'c3'],
@@ -221,14 +300,18 @@ def main():
         table.border = '1px solid #dddddd'
         table.text_align = 'center'
         #        table.padding = '8px'
-        table.font_family = "arial, sans-serif"
+        table.font_family = 'arial, sans-serif'
         table.border_collapse = 'collapse'
-        table.width = "100%"
+        table.width = '100%'
         table.even_background_color = '#dddddd'
         table.odd_background_color = '#dddd00'
         html.append(table)
+        image = HtmlImage('pulpitrock.jpg', height=100, width=120, alt_text='testing')
+        html.append(HtmlLine())
+        html.append(image)
+        html.append(HtmlMailTo('jordan@thompco.com', 'Jordan Thompson'))
         the_file.write(html.to_string())
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
