@@ -71,7 +71,7 @@ class HtmlList(HtmlItem):
     def get_style(self, depth):
         rtn = ''
         for item in self.html_items:
-            rtn += item.get_style()
+            rtn += item.get_style(depth)
         return rtn
 
     def get_body(self, depth):
@@ -83,6 +83,18 @@ class HtmlList(HtmlItem):
         else:
             rtn = '{}<ul>\n{}{}</ul>'.format(SPACER * depth, rtn, SPACER * (depth + 1))
         return rtn
+
+
+class HtmlCode(HtmlItem):
+    def __init__(self, text):
+        self.text = text
+
+    def get_style(self, depth):
+        return ''
+
+    def get_body(self, depth):
+        text = self.text.replace('\n', '<br>\n' + SPACER * (depth+1))
+        return '{}<code>\n{}{}\n{}</code>'.format(SPACER * depth, SPACER * (depth + 1), text, SPACER * depth)
 
 
 class HtmlText(HtmlItem):
@@ -302,14 +314,17 @@ def main():
         #        table.padding = '8px'
         table.font_family = 'arial, sans-serif'
         table.border_collapse = 'collapse'
-        table.width = '100%'
+        table.width = '1000px'
         table.even_background_color = '#dddddd'
         table.odd_background_color = '#dddd00'
         html.append(table)
         image = HtmlImage('pulpitrock.jpg', height=100, width=120, alt_text='testing')
         html.append(HtmlLine())
         html.append(image)
+        html.append(HtmlBreak())
         html.append(HtmlMailTo('jordan@thompco.com', 'Jordan Thompson'))
+        html.append(HtmlBreak())
+        html.append(HtmlCode('This is a test\nAnd another\nand another\nand yet another!'))
         the_file.write(html.to_string())
 
 
