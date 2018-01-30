@@ -39,7 +39,7 @@ class MintCheck:
 
     def connect(self):
         return mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
-                            ius_session=self.config.mint_cookie, thx_guid=self.config.mint_cookie_2)
+                            headless=self.config.headless)
 
     def _get_data(self, start_date):
         logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
@@ -219,6 +219,7 @@ def main():
                         email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message,
                                           cc=cc)
     logger.info("Done!")
+
 
 if __name__ == "__main__":
     main()

@@ -2,7 +2,6 @@ import cPickle
 import dominate.tags as tags
 from dominate.util import raw
 from emailSender import EmailSender
-from dateutil.relativedelta import relativedelta
 import locale
 from operator import itemgetter
 import datetime

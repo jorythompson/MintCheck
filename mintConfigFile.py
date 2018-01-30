@@ -20,6 +20,7 @@ MINT_USER_USERNAME = "username"
 MINT_USER_PASSWORD = "password"
 MINT_COOKIE = "ius_session_cookie"
 MINT_COOKIE_2 = "thx_guid_cookie"
+HEADLESS = "headless"
 MINT_REMOVE_DUPLICATES = "remove_duplicates"
 MINT_IGNORE_ACCOUNTS = "ignore_accounts_containing"
 
@@ -234,6 +235,10 @@ class MintConfigFile:
             self.mint_cookie_2 = self.config.get(MINT_TITLE, MINT_COOKIE_2)
         except Exception:
             missing_entry(MINT_TITLE, MINT_COOKIE_2, file_name)
+        try:
+            self.headless = self.config.getboolean(MINT_TITLE, HEADLESS)
+        except Exception:
+            missing_entry(MINT_TITLE, HEADLESS, file_name)
 
         try:
             self.mint_ignore_accounts = self.config.get(MINT_TITLE, MINT_IGNORE_ACCOUNTS)
