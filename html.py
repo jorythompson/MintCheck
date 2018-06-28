@@ -1,5 +1,6 @@
 import abc
 import copy
+
 SPACER = '  '
 
 
@@ -79,9 +80,9 @@ class HtmlList(HtmlItem):
         for item in self.html_items:
             rtn += '{}<li>{}</li>\n'.format(SPACER * (depth + 1), item.get_body(0))
         if self.ordered:
-            rtn = '{}<ol>\n{}{}</ol>'.format(SPACER * depth, rtn, SPACER * (depth + 1))
+            rtn = '{}<ol>\n{}{}</ol>'.format(SPACER * depth, rtn, SPACER * depth)
         else:
-            rtn = '{}<ul>\n{}{}</ul>'.format(SPACER * depth, rtn, SPACER * (depth + 1))
+            rtn = '{}<ul>\n{}{}</ul>'.format(SPACER * depth, rtn, SPACER * depth)
         return rtn
 
 

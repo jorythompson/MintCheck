@@ -239,13 +239,11 @@ class MintConfigFile:
             self.headless = self.config.getboolean(MINT_TITLE, HEADLESS)
         except Exception:
             missing_entry(MINT_TITLE, HEADLESS, file_name)
-
         try:
             self.mint_ignore_accounts = self.config.get(MINT_TITLE, MINT_IGNORE_ACCOUNTS)
         except Exception:
             missing_entry(MINT_TITLE, MINT_IGNORE_ACCOUNTS, file_name, default_value="")
             self.mint_ignore_accounts = None
-
         self.mint_remove_duplicates = self.config.get(MINT_TITLE, MINT_REMOVE_DUPLICATES)
         colors = self.config.items(COLORS_TITLE)
         self.color_tags = {}
