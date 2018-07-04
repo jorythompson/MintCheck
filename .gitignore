@@ -11,3 +11,4 @@ log.*
 pickle.*
 MintCheck.json
 MintCheck.log.*
+venv

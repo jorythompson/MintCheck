@@ -526,7 +526,7 @@ class MintConfigFile:
                 if test_email:
                     for email in user.email:
                         logger.debug("Sending test email to " + user.name)
-                        email_sender.send(email, user.subject, "This is a test message from MintCheck")
+                        email_sender.send(email, user.subject, "This is a test message from Mint Checker")
 
     @staticmethod
     def next_date_from_day(day):

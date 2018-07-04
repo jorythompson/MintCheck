@@ -12,6 +12,7 @@ import inspect
 import os
 import sys
 
+
 class MintCheckerDeposit:
     def __init__(self):
         logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
