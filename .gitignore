@@ -1,4 +1,5 @@
 *.pickle
+google-chrome.deb
 payment*.ini
 home.ini
 work.ini
