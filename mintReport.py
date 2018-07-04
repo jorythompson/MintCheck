@@ -59,10 +59,17 @@ class PrettyPrint:
                 tags.h1("Required Balances in Debit Accounts Due Soon", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
                     with tags.thead(style=BORDER_STYLE):
+                        tags.th("")
+                        tags.th("Debit Account", colspan="2", style=BORDER_STYLE)
+                        tags.th("Credit Account", colspan="2", style=BORDER_STYLE)
+                        tags.th("")
+                        tags.th("")
+                        tags.tr(style=BORDER_STYLE)
                         tags.th("Due")
-                        tags.th("Financial Institution")
-                        tags.th("Debit Account")
-                        tags.th("Credit Account")
+                        tags.th("Account")
+                        tags.th("Available")
+                        tags.th("institution")
+                        tags.th("Account")
                         tags.th("Amount")
                         tags.th("Total Amount")
                         tags.tr(style=BORDER_STYLE)
@@ -72,6 +79,7 @@ class PrettyPrint:
                         with tags.tbody():
                             total += debit_account["mint credit account"]["currentBalance"]
                             account_field = ""
+                            balance_field = ""
                             total_field = ""
                             date_field = ""
                             border = None
@@ -80,13 +88,15 @@ class PrettyPrint:
                                     or next_iterable["mint next payment date"] != debit_account[
                                         "mint next payment date"])):
                                 account_field = debit_account["mint paid from account"]
+                                balance_field = locale.currency(debit_account["mint paid from amount"], grouping=True)
                                 total_field = locale.currency(total, grouping=True)
                                 date_field = debit_account["mint next payment date"].strftime("%a, %b %d")
                                 total = 0
                                 border = BORDER_STYLE
                             tags.td(date_field, align="right", style=border)
-                            tags.td( debit_account["mint credit account"]["fiName"], style=border)
                             tags.td(account_field, style=border)
+                            tags.td(balance_field, align="right", style=border)
+                            tags.td(debit_account["mint credit account"]["fiName"], style=border)
                             tags.td(debit_account["mint credit account"]["accountName"], style=border)
                             tags.td(
                                 locale.currency(debit_account["mint credit account"]["currentBalance"], grouping=True),
@@ -369,6 +379,12 @@ class PrettyPrint:
                                                     paid_from["mint paid from account"] = paid_from["debit account"]
                                                     paid_from["mint next payment date"] = next_payment_date
                                                     paid_from["mint credit account"] = account
+                                                    paid_from_amount = 0
+                                                    for mint_account in accounts:
+                                                        if paid_from["debit account"] == mint_account["accountName"]:
+                                                            paid_from_amount = mint_account["value"]
+                                                            break
+                                                    paid_from["mint paid from amount"] = paid_from_amount
                                                     debit_accounts.append(paid_from)
                                                 break
                                         if not paid_noted:

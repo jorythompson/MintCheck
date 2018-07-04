@@ -35,11 +35,12 @@ class MintCheck:
         self.config = MintConfigFile(self.args.config, test_email=self.args.validate_emails,
                                      validate=self.args.validate_ini)
         self.now = datetime.datetime.combine(datetime.date.today(), datetime.time())
+        self.prompt_for_text = None
         logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
 
     def connect(self):
         return mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
-                            headless=self.config.headless)
+                            headless=self.config.headless, prompt_for_text=self.args.prompt_for_text)
 
     def _get_data(self, start_date):
         logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
@@ -95,7 +96,7 @@ class MintCheck:
     def _get_args():
         parser = argparse.ArgumentParser(description='Read Information from Mint')
         parser.add_argument('--live', action="store_true", default=False,
-                            help='Indicates MintCheck is running live and should sleep a random period of time before '
+                            help='Indicates Mint Checker is running live and should sleep a random period of time before '
                                  'hitting Mint.com.  It also refreshes Mint and sleeps for 15 minutes while Mint '
                                  'updates itself.')
         parser.add_argument('--config', required=True,
@@ -104,6 +105,8 @@ class MintCheck:
                             help='Validates the input configuration file')
         parser.add_argument('--validate_emails',  action="store_true", default=False,
                             help='Validates sending emails to all users in the configuration file')
+        parser.add_argument('--prompt_for_text',  action="store_true", default=False,
+                            help='Requests Mint to send validation via text')
         return parser.parse_args()
 
     @staticmethod
@@ -213,10 +216,10 @@ def main():
                     else:
                         cc = None
                     try:
-                        email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message,
+                        email_sender.send(to_email=email_to, subject="Exception caught in Mint Checker", message=message,
                                           cc=cc, attach_file=thompco_utils.get_log_file_name())
                     except:
-                        email_sender.send(to_email=email_to, subject="Exception caught in MintCheck", message=message,
+                        email_sender.send(to_email=email_to, subject="Exception caught in Mint Checker", message=message,
                                           cc=cc)
     logger.info("Done!")
 
