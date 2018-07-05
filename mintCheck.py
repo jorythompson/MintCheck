@@ -100,7 +100,7 @@ class MintCheck:
                                  'hitting Mint.com.  It also refreshes Mint and sleeps for 15 minutes while Mint '
                                  'updates itself.')
         parser.add_argument('--config', required=True,
-                            help='Configuration file containing your username, password, and mint cookie')
+                            help='Configuration file containing your username, password,etc')
         parser.add_argument('--validate_ini', action="store_true", default=False,
                             help='Validates the input configuration file')
         parser.add_argument('--validate_emails',  action="store_true", default=False,

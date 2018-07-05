@@ -18,8 +18,6 @@ import inspect
 MINT_TITLE = "mint connection"
 MINT_USER_USERNAME = "username"
 MINT_USER_PASSWORD = "password"
-MINT_COOKIE = "ius_session_cookie"
-MINT_COOKIE_2 = "thx_guid_cookie"
 HEADLESS = "headless"
 MINT_REMOVE_DUPLICATES = "remove_duplicates"
 MINT_IGNORE_ACCOUNTS = "ignore_accounts_containing"
@@ -227,14 +225,6 @@ class MintConfigFile:
             self.mint_password = self.config.get(MINT_TITLE, MINT_USER_PASSWORD)
         except Exception:
             missing_entry(MINT_TITLE, MINT_USER_PASSWORD, file_name)
-        try:
-            self.mint_cookie = self.config.get(MINT_TITLE, MINT_COOKIE)
-        except Exception:
-            missing_entry(MINT_TITLE, MINT_COOKIE, file_name)
-        try:
-            self.mint_cookie_2 = self.config.get(MINT_TITLE, MINT_COOKIE_2)
-        except Exception:
-            missing_entry(MINT_TITLE, MINT_COOKIE_2, file_name)
         try:
             self.headless = self.config.getboolean(MINT_TITLE, HEADLESS)
         except Exception:
@@ -448,8 +438,6 @@ class MintConfigFile:
             dump_config_value(MINT_TITLE)
             dump_config_value(MINT_USER_USERNAME, self.mint_username)
             dump_config_value(MINT_USER_PASSWORD, self.mint_password)
-            dump_config_value(MINT_COOKIE, self.mint_cookie)
-            dump_config_value(MINT_COOKIE_2, self.mint_cookie_2)
             dump_config_value(MINT_REMOVE_DUPLICATES, self.mint_remove_duplicates)
             dump_config_value(MINT_IGNORE_ACCOUNTS, self.mint_ignore_accounts)
 
