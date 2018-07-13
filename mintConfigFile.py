@@ -12,6 +12,7 @@ import datetime
 import os
 from dateutil.relativedelta import relativedelta
 import inspect
+from osUtils import get_os
 
 
 # mint connection block
@@ -33,6 +34,7 @@ GENERAL_MAX_SLEEP = "max_sleep"
 GENERAL_EXCEPTIONS_TO = "exceptions_to"
 GENERAL_PICKLE_FOLDER = "pickle_folder"
 GENERAL_HTML_FOLDER = "html_folder"
+DRIVER_TITLE = "driver"
 
 # USER block
 USER_EMAIL = "email"
@@ -241,6 +243,7 @@ class MintConfigFile:
             self.color_tags[color[0]] = ast.literal_eval("[" + color[1].lower() + "]")
         self.general_week_start = self.config.get(GENERAL_TITLE, GENERAL_WEEK_START)
         self.general_month_start = self.config.getint(GENERAL_TITLE, GENERAL_MONTH_START)
+        self.driver_location = self.config.get(DRIVER_TITLE, get_os())
 
         # Balance Warnings section
         self.balance_warnings = []

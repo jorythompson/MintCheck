@@ -40,7 +40,8 @@ class MintCheck:
 
     def connect(self):
         return mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
-                            headless=self.config.headless, prompt_for_text=self.args.prompt_for_text)
+                            headless=self.config.headless, path_to_driver=self.config.driver_location,
+                            prompt_for_text=self.args.prompt_for_text)
 
     def _get_data(self, start_date):
         logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
