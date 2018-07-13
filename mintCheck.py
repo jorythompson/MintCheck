@@ -103,9 +103,9 @@ class MintCheck:
                             help='Configuration file containing your username, password,etc')
         parser.add_argument('--validate_ini', action="store_true", default=False,
                             help='Validates the input configuration file')
-        parser.add_argument('--validate_emails',  action="store_true", default=False,
+        parser.add_argument('--validate-emails',  action="store_true", default=False,
                             help='Validates sending emails to all users in the configuration file')
-        parser.add_argument('--prompt_for_text',  action="store_true", default=False,
+        parser.add_argument('--prompt-for-text',  action="store_true", default=False,
                             help='Requests Mint to send validation via text')
         return parser.parse_args()
 
