@@ -481,7 +481,9 @@ class PrettyPrint:
     def identify_missing_accounts(self):
         new_accounts = []
         missing_accounts = []
+        missing_accounts_html = tags.html()
         previous_accounts = self.unpickle_previous_accounts()
+        '''
         for previous_account in previous_accounts:
             found = False
             for current_account in self.accounts.accounts:
@@ -501,7 +503,6 @@ class PrettyPrint:
             if not found:
                 new_accounts.append(current_account)
         self.pickle_previous_accounts(new_accounts + previous_accounts)
-        missing_accounts_html = tags.html()
         with missing_accounts_html.add(tags.body()).add(tags.div(id='content')):
             if len(new_accounts) > 0:
                 tags.h1("New Accounts", align="center")
@@ -523,6 +524,7 @@ class PrettyPrint:
                         with tags.tr(style="color:red"):
                             tags.td(account['fiName'])
                             tags.td(account['accountName'])
+        '''
         return missing_accounts_html
 
     def send_data(self):
