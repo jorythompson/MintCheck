@@ -1,4 +1,5 @@
 #!/bin/sh
+cd /mnt/usbdrive/python/MintCheck
 export PYTHONPATH=/mnt/usbdrive/python/github
 # use this line to prompt mint to send a text message for a passcode.  Note that mint will only send a passcode (this
 # will only work) if the previous one has expired.
