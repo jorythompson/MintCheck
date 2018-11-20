@@ -1,15 +1,21 @@
 import smtplib
-from email.mime.text import MIMEText
-from email.MIMEMultipart import MIMEMultipart
-from email.MIMEText import MIMEText
-from email.MIMEBase import MIMEBase
 import gzip
 import io
 import os
 import ConfigParser
 import logging
 import inspect
-from email.mime.application import MIMEApplication
+if os.name == 'nt':
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.application import MIMEApplication
+else:
+    # noinspection PyUnresolvedReferences
+    from email.MIMEMultipart import MIMEMultipart
+    # noinspection PyUnresolvedReferences
+    from email.MIMEText import MIMEText
+    # noinspection PyUnresolvedReferences
+    from email.MIMEApplication import MIMEApplication
 
 
 class EmailConnection:
@@ -18,22 +24,22 @@ class EmailConnection:
     PASSWORD = "password"
     FROM = "from"
 
-    def __init__(self, config=None, username=None, password=None, from_user=None):
-        if config is None:
+    def __init__(self, conf=None, username=None, password=None, from_user=None):
+        if conf is None:
             self.username = username
             self.password = password
             self.from_user = from_user
         else:
-            self.username = config.get(EmailConnection.TITLE, EmailConnection.USERNAME)
-            self.password = config.get(EmailConnection.TITLE, EmailConnection.PASSWORD)
-            self.from_user = config.get(EmailConnection.TITLE, EmailConnection.FROM)
+            self.username = conf.get(EmailConnection.TITLE, EmailConnection.USERNAME)
+            self.password = conf.get(EmailConnection.TITLE, EmailConnection.PASSWORD)
+            self.from_user = conf.get(EmailConnection.TITLE, EmailConnection.FROM)
 
 
 class EmailSender:
     def __init__(self, email_connection):
         self.email_connection = email_connection
 
-    def send(self, to_email, subject, message, cc=None, attach_file=None):
+    def send(self, to_email, subject, message, attach_file=None):
         logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
         server = None
         try:
@@ -76,6 +82,6 @@ if __name__ == '__main__':
               message='Here is the message using parameters passed in')
     config = ConfigParser.ConfigParser()
     config.read('laptop-home.ini')
-    #mail = EmailSender(EmailConnection(config, logging.getLogger('emailSender_test')))
-    #mail.send(['jorythompson@gmail.com', 'jordan@thompco.com'], 'this is a test from emailSender',
+    # mail = EmailSender(EmailConnection(config, logging.getLogger('emailSender_test')))
+    # mail.send(['jorythompson@gmail.com', 'jordan@thompco.com'], 'this is a test from emailSender',
     #          'Here is the message using the configuration file')
