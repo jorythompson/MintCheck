@@ -5,7 +5,7 @@ import os
 import ConfigParser
 import logging
 import inspect
-if os.name == 'nt':
+if os.name == 'nt' or os.name == "posix":
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
     from email.mime.application import MIMEApplication

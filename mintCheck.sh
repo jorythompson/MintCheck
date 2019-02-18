@@ -1,8 +1,12 @@
 #!/bin/sh
-cd /mnt/usbdrive/python/MintCheck
-export PYTHONPATH=/mnt/usbdrive/python/github
-# use this line to prompt mint to send a text message for a passcode.  Note that mint will only send a passcode (this
-# will only work) if the previous one has expired.
-#python /mnt/usbdrive/python/MintCheck/mintCheck.py --config /mnt/usbdrive/python/MintCheck/home.ini --prompt-for-text
-python /mnt/usbdrive/python/MintCheck/mintCheck.py --config /mnt/usbdrive/python/MintCheck/home.ini 
+if [[ ! -f "mintCheck,py" ]]
+then
+  export MINT_FOLDER=./
+else
+  export MINT_FOLDER=/mnt/usbdrive/python/MintCheck
+fi
+export API_FOLDER=$MINT_FOLDER/../github/mintapi
+cd $MINT_FOLDER
+export PYTHONPATH=$API_FOLDER
+python $MINT_FOLDER/mintCheck.py --config $MINT_FOLDER/home.ini
 exit

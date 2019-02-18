@@ -58,14 +58,14 @@ class MintSheet:
                 if not added:
                     worksheet.share(value=new_owner, perm_type="user", role="owner", notify=True,
                                     email_message="Just created this sheet")
-            except:
+            except Exception:
                 pass
             try:
                 tab = worksheet.worksheet(tab_name)
-            except:
+            except Exception:
                 tab = None
             return tab
-        except:
+        except Exception:
             logger.debug("failed trying to open tab '" + tab_name + "' on sheet '" + sheet_name + "'")
             if new_owner is None:
                 logging.exception("Could not get tab '" + tab_name + "' on sheet '" + sheet_name + "'")
@@ -75,7 +75,7 @@ class MintSheet:
                     tab = worksheet.add_worksheet(tab_name, cols=100, rows=100)
                     try:  # remove Sheet1 if it exists
                         worksheet.del_worksheet(worksheet.worksheet("Sheet1"))
-                    except:
+                    except Exception:
                         pass
                     return tab
                 except Exception as e:
@@ -182,7 +182,7 @@ class MintSheet:
                                         "sheet_name": sheet.sheet_name,
                                         "row": str(row_count)
                                     })
-                    except:
+                    except Exception:
                         logger.info("Tab " + tab_name + " on sheet " + sheet_name + " does not exist... skipping")
         return data
 
@@ -201,6 +201,7 @@ def main():
             missing_transactions = mint_spread.get_missing_deposits(mint_transactions, user)
             for missing in missing_transactions:
                 print missing
+
 
 if __name__ == "__main__":
     main()

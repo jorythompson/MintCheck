@@ -628,6 +628,7 @@ class PrettyPrint:
                             cc = self.config.general_admin_email
                         else:
                             cc = None
-                        email_sender.send(email, user.subject, message, cc, attach_file=log_file)
+
+                        email_sender.send(to_email=email, subject=user.subject, message=message, attach_file=log_file)
                 else:
                     logger.debug("Not sending emails")

@@ -1,6 +1,6 @@
 import sys
 import traceback
-import mintapi.mintapi as mintapi
+import mintapi
 import mintObjects
 import mintReport
 import argparse
@@ -39,9 +39,8 @@ class MintCheck:
         logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
 
     def connect(self):
-        return mintapi.Mint(email=self.config.mint_username, password=self.config.mint_password,
-                            headless=self.config.headless, path_to_driver=self.config.driver_location,
-                            prompt_for_text=self.args.prompt_for_text)
+        return mintapi.Mint.create(email=self.config.mint_username, password=self.config.mint_password,
+                                   headless=self.config.headless, mfa_method="sms")
 
     def _get_data(self, start_date):
         logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
@@ -210,10 +209,9 @@ def main():
                     cc = None
                 try:
                     email_sender.send(to_email=email_to, subject="Exception caught in Mint Checker", message=message,
-                                      cc=cc, attach_file=thompco_utils.get_log_file_name())
+                                      attach_file=thompco_utils.get_log_file_name())
                 except:
-                    email_sender.send(to_email=email_to, subject="Exception caught in Mint Checker", message=message,
-                                      cc=cc)
+                    email_sender.send(to_email=email_to, subject="Exception caught in Mint Checker", message=message)
     logger.info("Done!")
 
 
