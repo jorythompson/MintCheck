@@ -7,10 +7,9 @@ from operator import itemgetter
 import datetime
 from itertools import tee, chain, izip, islice
 from mintCheck import MintCheck
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time
 import os
-import logging
-import inspect
+import dateutil
 import thompco_utils
 
 
@@ -25,6 +24,7 @@ class PrettyPrint:
         self.sheets = sheets
         self.now = datetime.combine(date.today(), time())
         self.doc = None
+        self.fis = None
 
     @staticmethod
     def previous_and_next(some_iterable):
@@ -36,7 +36,7 @@ class PrettyPrint:
     @staticmethod
     def multi_key_sort(items, columns):
         comparators = [((itemgetter(col[1:].strip()), -1) if col.startswith('-') else
-                      (itemgetter(col.strip()), 1)) for col in columns]
+                        (itemgetter(col.strip()), 1)) for col in columns]
 
         def comparator(left, right):
             for fn, multiplier in comparators:
@@ -48,8 +48,9 @@ class PrettyPrint:
 
         return sorted(items, cmp=comparator)
 
-    def create_debit_accounts(self, debit_accounts, missing_debit_accounts):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+    @staticmethod
+    def create_debit_accounts(debit_accounts, missing_debit_accounts):
+        logger = thompco_utils.get_logger()
         debit_accounts_html = tags.html()
         if len(debit_accounts) > 0 or len(missing_debit_accounts) > 0:
             sorted_debit_accounts = PrettyPrint.multi_key_sort(debit_accounts,
@@ -109,34 +110,33 @@ class PrettyPrint:
 
     def create_activity(self, start_date, user, handled_accounts, user_accounts):
         bad_transactions = []
-        transactions = []
         activity_html = tags.html()
         activity = False
+        fg_color = self.config.account_type_bank_fg
         with activity_html.add(tags.body()).add(tags.div(id='content')):
-            fis = self.transactions.get_financial_institutions(start_date)
-            for fi in fis:
+            for fi in self.fis:
                 fis_title_saved = False
-                account_names = self.transactions.get_accounts(fi, start_date)
-                for account_name in account_names:
-                    if self.config.mint_ignore_accounts not in account_name and \
-                            (account_name in user.active_accounts or "all" in user.active_accounts):
+                # account_names = self.transactions.get_accounts(fi, start_date)
+                # for account_name in account_names:
+                for account in self.accounts:
+                    if fi == account["fiName"] and self.config.mint_ignore_accounts not in account["accountName"] and \
+                            (account["accountName"] in user.active_accounts or "all" in user.active_accounts):
+                        if "SunTrust" in account["fiName"]:
+                            pass
                         activity = True
-                        if account_name in handled_accounts:
-                            continue
-                        handled_accounts.append(account_name)
-                        mint_account = self.accounts.get_account(account_name)
-                        if mint_account is not None:
-                            user_accounts[user] = mint_account
+                        if account not in handled_accounts:
+                            # handled_accounts.append(account)
+                            user_accounts[user] = account["accountName"]
                             account_message = "This"
-                            if mint_account["accountType"] == "bank":
+                            if account["accountType"] == "bank":
                                 fg_color = self.config.account_type_bank_fg
                                 account_message += " is a bank account"
-                            elif mint_account["accountType"] == "credit":
+                            elif account["accountType"] == "credit":
                                 fg_color = self.config.account_type_credit_fg
                                 account_message += " credit card"
                                 next_payment_date = self.config.get_next_payment_date(
-                                    account_name, mint_account["dueDate"])
-                                next_payment_amount = mint_account["dueAmt"]
+                                    account["accountName"], account["dueDate"])
+                                next_payment_amount = account["dueAmt"]
                                 if next_payment_date is None:
                                     next_payment_date = " on undetermined date"
                                 else:
@@ -152,7 +152,7 @@ class PrettyPrint:
                                                               " due"
                                 account_message += next_payment_amount + " and is due on" + next_payment_date
                             else:
-                                account_message += mint_account["accountType"].strip()
+                                account_message += account["accountType"].strip()
                             if not fis_title_saved:
                                 try:
                                     f = user.rename_institutions[fi]
@@ -162,58 +162,89 @@ class PrettyPrint:
                                                  + ";text-align:center")
                                 fis_title_saved = True
                             try:
-                                renamed_account = user.rename_accounts[account_name]
+                                renamed_account = user.rename_accounts[account["accountName"]]
                             except KeyError:
-                                renamed_account = account_name
-                            transactions, total = self.transactions.get_transactions(fi, account_name, start_date)
-                            tags.h3(renamed_account + " has a balance of " +
-                                    locale.currency(mint_account["value"], grouping=True) +
-                                    ".  Total transactions for this report is " +
-                                    locale.currency(total, grouping=True) + ":",
-                                    style="color:" + fg_color, align="center")
-                            with tags.table(rules="cols", frame="box", align="center"):
-                                with tags.thead(style=BORDER_STYLE):
-                                    tags.th("Date")
-                                    tags.th("Merchant")
-                                    tags.th("Amount", colspan="2", style=BORDER_STYLE)
-                                    with tags.tr(style=BORDER_STYLE):
-                                        tags.th("")
-                                        tags.th("")
-                                        tags.th("Credit")
-                                        tags.th("Debit")
-                                for transaction in transactions:
-                                    fg_color = "black"
-                                    for color in self.config.color_tags:
-                                        for word in self.config.color_tags[color]:
-                                            if word in transaction["merchant"].lower() \
-                                                    or word in transaction["mmerchant"].lower() \
-                                                    or word in transaction["omerchant"].lower():
-                                                fg_color = color
-                                                bad_transactions.append([transaction, fg_color])
-                                                break
-                                        else:
-                                            continue
-                                        break
-                                    with tags.tbody():
-                                        with tags.tr(style="color:" + fg_color):
-                                            tags.td(transaction["date"].strftime('%b %d'))
-                                            tags.td(transaction["omerchant"])
-                                            amount = transaction["amount"]
-                                            if transaction["isDebit"]:
-                                                tags.td("")
-                                                tags.td(locale.currency(-amount, grouping=True),
-                                                        align="right")
+                                renamed_account = account["accountName"]
+                            transactions, total = self.transactions.get_transactions(fi, account["accountName"], start_date)
+                            if len(transactions) > 0:
+                                tags.h3(renamed_account + " (Account " +
+                                        account["yodleeAccountNumberLast4"].replace("...", "") + ") has a balance of " +
+                                        locale.currency(account["value"], grouping=True) +
+                                        ".  Total transactions for this report is " +
+                                        locale.currency(total, grouping=True) + ":",
+                                        style="color:" + fg_color, align="center")
+                                with tags.table(rules="cols", frame="box", align="center"):
+                                    with tags.thead(style=BORDER_STYLE):
+                                        tags.th("Date")
+                                        tags.th("Merchant")
+                                        tags.th("Type")
+                                        tags.th("Amount", colspan="2", style=BORDER_STYLE)
+                                        with tags.tr(style=BORDER_STYLE):
+                                            tags.th("")
+                                            tags.th("")
+                                            tags.th("")
+                                            tags.th("Credit")
+                                            tags.th("Debit")
+                                    for transaction in transactions:
+                                        fg_color = "black"
+                                        for color in self.config.color_tags:
+                                            for word in self.config.color_tags[color]:
+                                                if word in transaction["merchant"].lower() \
+                                                        or word in transaction["mmerchant"].lower() \
+                                                        or word in transaction["omerchant"].lower():
+                                                    fg_color = color
+                                                    bad_transactions.append([transaction, fg_color])
+                                                    break
                                             else:
-                                                tags.td(locale.currency(amount, grouping=True),
-                                                        align="right")
-                                                tags.td("")
+                                                continue
+                                            break
+                                        with tags.tbody():
+                                            with tags.tr(style="color:" + fg_color):
+                                                tags.td(transaction["date"].strftime('%b %d'))
+                                                tags.td(transaction["omerchant"])
+                                                tags.td(transaction["category"])
+                                                amount = transaction["amount"]
+                                                if transaction["isDebit"]:
+                                                    tags.td("")
+                                                    tags.td(locale.currency(-amount, grouping=True),
+                                                            align="right")
+                                                else:
+                                                    tags.td(locale.currency(amount, grouping=True),
+                                                            align="right")
+                                                    tags.td("")
         if not activity:
             with activity_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h5("No Transactions For This Period", align="center")
-        return activity_html, transactions, bad_transactions
+        return activity_html, bad_transactions
+
+    """
+    def get_transactions_by_fi(self, start_date):
+        transactions_html = tags.html()
+        with transactions_html.add(tags.body()).add(tags.div(id='content')):
+            for fi in self.fis:
+                account_names = self.transactions.get_accounts(fi, start_date)
+                for account_name in account_names:
+                    mint_account = self.accounts.get_account(account_name)
+                    if mint_account
+                    printed_title = False
+                    transactions, total = self.transactions.get_transactions(fi, account_name, start_date)
+                    for transaction in transactions:
+                        if not printed_title:
+                            tags.h1(fi + "/" + transaction["account" + "Total=$" + locale.currency(total, grouping=True), style="color:" + fg_color
+                                             + ";text-align:center")
+                            print fi, transaction["account"], locale.currency(total, grouping=True)
+                            printed_title = True
+                        if transaction["fi"] == fi:
+                            if transaction["isDebit"]:
+                                multiplier = -1
+                            else:
+                                multiplier = 1
+                            print transaction["date"].strftime("%m/%d/%y"), multiplier * transaction["amount"], transaction["merchant"], transaction["category"]
+            return transactions_html
+    """
 
     def create_balance_warnings(self, balance_warnings, user):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger = thompco_utils.get_logger()
         balance_warnings_html = tags.html()
         if len(balance_warnings) > 0:
             logger.info("assembling balance warnings")
@@ -250,11 +281,11 @@ class PrettyPrint:
                             tags.td(warning[1].comparator)
                             amount = locale.currency(warning[1].amount, grouping=True)
                             try:
-                                due_date = warning[0]["dueDate"]
-                            except:
+                                due_date = dateutil.parser.parse(str(warning[0]["dueDate"]))
+                            except Exception:
                                 due_date = None
                             tags.td(amount, align="right")
-                            if due_date is None:
+                            if due_date is None or due_date == "":
                                 if warning[0]["accountType"] == "credit":
                                     due_date = "unknown"
                                 else:
@@ -267,8 +298,9 @@ class PrettyPrint:
                 tags.h5("No Accounts With Balance Alerts For This Period", align="center")
         return balance_warnings_html
 
-    def get_fees(self, bad_transactions, user):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+    @staticmethod
+    def get_fees(bad_transactions, user):
+        logger = thompco_utils.get_logger()
         fees_html = tags.html()
         if len(bad_transactions) > 0:
             logger.info("assembling bad transactions")
@@ -316,10 +348,10 @@ class PrettyPrint:
         return fees_html
 
     def get_accounts(self, user):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger = thompco_utils.get_logger()
         accounts = []
         logger.info("assembling account lists")
-        for account in self.accounts.accounts:
+        for account in self.accounts:
             for account_name in user.active_accounts:
                 if (account_name == "all" or account_name == account["name"]) \
                         and self.config.mint_ignore_accounts not in account["name"] \
@@ -372,7 +404,7 @@ class PrettyPrint:
                                                 debit_account = paid_from["debit account"]
                                                 try:
                                                     debit_amount = locale.currency(paid_from["balance"], grouping=True)
-                                                except:
+                                                except Exception:
                                                     debit_amount = None
                                                 if next_payment_date is not None and next_payment_date >= self.now:
                                                     paid_noted = True
@@ -414,7 +446,7 @@ class PrettyPrint:
         return accounts_html, accounts, debit_accounts, missing_debit_accounts
 
     def create_debug_section(self):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger = thompco_utils.get_logger()
         debug_html = None
         if not self.config.debug_send_email or not self.config.debug_mint_download \
                 or not self.config.debug_sheets_download:
@@ -431,7 +463,7 @@ class PrettyPrint:
         return debug_html
 
     def create_deposit_warnings(self, user):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger = thompco_utils.get_logger()
         sheets = self.sheets.get_missing_deposits(self.transactions, user)
         deposit_warnings_html = tags.html()
         if len(sheets) > 0:
@@ -478,11 +510,12 @@ class PrettyPrint:
                 previous_accounts = cPickle.load(handle)
         return previous_accounts
 
-    def identify_missing_accounts(self):
-        new_accounts = []
-        missing_accounts = []
+    @staticmethod
+    def identify_missing_accounts():
+        # new_accounts = []
+        # missing_accounts = []
         missing_accounts_html = tags.html()
-        previous_accounts = self.unpickle_previous_accounts()
+        # previous_accounts = self.unpickle_previous_accounts()
         '''
         for previous_account in previous_accounts:
             found = False
@@ -528,7 +561,7 @@ class PrettyPrint:
         return missing_accounts_html
 
     def send_data(self):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger = thompco_utils.get_logger()
         logger.debug("starting send_data")
         user_accounts = {}
         missing_accounts_html = self.identify_missing_accounts()
@@ -541,7 +574,7 @@ class PrettyPrint:
             start_date, report_frequency = MintCheck.get_start_date(self.now, self.config.general_week_start,
                                                                     self.config.general_month_start, user.frequency)
             balance_warnings = []
-            for account in self.accounts.accounts:
+            for account in self.accounts:
                 if (self.config.mint_ignore_accounts not in account["name"]) and (
                                 account["name"] in user.active_accounts
                         or "all" in user.active_accounts and not account["isClosed"]):
@@ -564,12 +597,14 @@ class PrettyPrint:
                         elif t[1].comparator == "=" and abs(account["value"]) == t[1].amount:
                             balance_warnings.append(t)
             if start_date is not None:
-                activity_html, transactions, bad_transactions = \
+                self.fis = self.transactions.get_financial_institutions(start_date)
+                activity_html, bad_transactions = \
                     self.create_activity(start_date, user, handled_accounts, user_accounts)
+                # transactions_html = self.get_transactions_by_fi(start_date)
                 balance_warnings_html = self.create_balance_warnings(balance_warnings, user)
                 fees_html = self.get_fees(bad_transactions, user)
                 accounts_html, accounts, debit_accounts, missing_debit_accounts = self.get_accounts(user)
-                debit_accounts_html = self.create_debit_accounts(debit_accounts, missing_debit_accounts)
+                debit_accounts_html = PrettyPrint.create_debit_accounts(debit_accounts, missing_debit_accounts)
                 message = ""
                 debug_html = self.create_debug_section()
                 if debug_html is not None:
@@ -584,8 +619,7 @@ class PrettyPrint:
                     message += str(fees_html)
                 if deposit_warnings_html is not None:
                     message += str(deposit_warnings_html)
-                if len(transactions) > 0:
-                    message += str(activity_html)
+                message += str(activity_html)
                 if len(accounts) > 0:
                     message += str(accounts_html)
                 if message == "":
@@ -602,7 +636,8 @@ class PrettyPrint:
                                + 'Account Types:<font color="' + self.config.account_type_credit_fg + '">' \
                                + 'Credit cards</font>, ' + '<font color="' + self.config.account_type_bank_fg + '">' \
                                + 'Bank Accounts</font>, ' + '<font color="' + self.config.sheets_paid_color + '">' \
-                               + 'Verified Deposits</font>, ' + '<font color="' + self.config.sheets_unpaid_color + '">' \
+                               + 'Verified Deposits</font>, ' + '<font color="' +\
+                               self.config.sheets_unpaid_color + '">' \
                                + 'Missing Deposits</font>'
                     raw_html += "<br>Keywords: "
                     for color in self.config.color_tags:
@@ -612,7 +647,7 @@ class PrettyPrint:
                 message = str(report_period_html) + message
                 if self.config.debug_save_html is not None:
                     file_name = os.path.join(self.config.general_html_folder,
-                                             user.name + "_" +self.config.debug_save_html)
+                                             user.name + "_" + self.config.debug_save_html)
                     logger.debug("saving html file to " + file_name)
                     with open(file_name, "w") as out_html:
                         out_html.write(message)
@@ -621,14 +656,9 @@ class PrettyPrint:
                     for email in user.email:
                         logger.debug("Sending email to " + email)
                         if email.lower() == self.config.general_admin_email.lower() and self.config.debug_attach_log:
-                            log_file =thompco_utils.get_log_file_name()
+                            log_file = thompco_utils.get_log_file_name()
                         else:
                             log_file = None
-                        if self.config.debug_copy_admin:
-                            cc = self.config.general_admin_email
-                        else:
-                            cc = None
-
                         email_sender.send(to_email=email, subject=user.subject, message=message, attach_file=log_file)
                 else:
                     logger.debug("Not sending emails")

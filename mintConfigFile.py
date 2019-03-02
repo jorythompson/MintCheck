@@ -1,6 +1,5 @@
 import ConfigParser
 import ast
-import logging
 import logging.config
 import logging.handlers
 from emailSender import EmailConnection
@@ -9,11 +8,11 @@ import platform
 import sys
 from emailSender import EmailSender
 import datetime
+import dateutil
 import os
 from dateutil.relativedelta import relativedelta
-import inspect
 from osUtils import get_os
-
+import thompco_utils
 
 # mint connection block
 MINT_TITLE = "mint connection"
@@ -34,7 +33,6 @@ GENERAL_MAX_SLEEP = "max_sleep"
 GENERAL_EXCEPTIONS_TO = "exceptions_to"
 GENERAL_PICKLE_FOLDER = "pickle_folder"
 GENERAL_HTML_FOLDER = "html_folder"
-DRIVER_TITLE = "driver"
 
 # USER block
 USER_EMAIL = "email"
@@ -92,7 +90,7 @@ SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, D
 
 
 def missing_entry(section, entry, file_name, default_value=None):
-    logger = logging.getLogger(inspect.stack()[0][3])
+    logger = thompco_utils.get_logger()
     logger.debug("starting")
     if default_value is None:
         log_fn = logger.critical
@@ -161,7 +159,7 @@ class GoogleSheet:
 class MintUser:
     # Throws an exception if email and active_accounts are not set
     def __init__(self, name, config):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger = thompco_utils.get_logger()
         self.name = name
         self.email = ast.literal_eval("[" + config.config.get(name, USER_EMAIL) + "]")
         try:
@@ -210,7 +208,7 @@ def dump_config_value(key, value=None):
 
 class MintConfigFile:
     def __init__(self, file_name, validate=False, test_email=False):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger = thompco_utils.get_logger()
         self.file_name = file_name
         self.config = ConfigParser.ConfigParser()
         self.config.optionxform = str
@@ -243,7 +241,6 @@ class MintConfigFile:
             self.color_tags[color[0]] = ast.literal_eval("[" + color[1].lower() + "]")
         self.general_week_start = self.config.get(GENERAL_TITLE, GENERAL_WEEK_START)
         self.general_month_start = self.config.getint(GENERAL_TITLE, GENERAL_MONTH_START)
-        self.driver_location = self.config.get(DRIVER_TITLE, get_os())
 
         # Balance Warnings section
         self.balance_warnings = []
@@ -416,6 +413,11 @@ class MintConfigFile:
         except:
             self.sheets_unpaid_color = "purple"
             missing_entry(SHEETS_TITLE, SHEETS_UNPAID_COLOR, file_name, self.sheets_unpaid_color)
+        try:
+            self.sheets_day_error = self.config.getint(SHEETS_TITLE, SHEETS_DAY_ERROR)
+        except:
+            self.sheets_day_error = 3
+            missing_entry(SHEETS_TITLE, SHEETS_DAY_ERROR, file_name, self.sheets_day_error)
         self.users = []
         self.google_sheets = []
         self.worst_day_error = 0
@@ -529,7 +531,12 @@ class MintConfigFile:
         return next_date
 
     def get_next_payment_date(self, account_name, next_date):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        next_date = str(next_date)
+        if next_date == "":
+            next_date = None
+        if next_date is not None:
+            next_date = dateutil.parser.parse(next_date)
+        logger = thompco_utils.get_logger()
         logger.debug("starting")
         try:
             config_file = "payment_dates_" + self.file_name
@@ -553,6 +560,7 @@ class MintConfigFile:
                 return next_date
         except:
             return next_date
+
 
 if __name__ == "__main__":
     logging.config.fileConfig('logging.conf')

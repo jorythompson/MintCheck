@@ -3,8 +3,8 @@ import gzip
 import io
 import os
 import ConfigParser
-import logging
-import inspect
+import thompco_utils
+
 if os.name == 'nt' or os.name == "posix":
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
@@ -40,7 +40,7 @@ class EmailSender:
         self.email_connection = email_connection
 
     def send(self, to_email, subject, message, attach_file=None):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger = thompco_utils.get_logger()
         server = None
         try:
             server = smtplib.SMTP("smtp.gmail.com", 587)

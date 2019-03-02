@@ -14,7 +14,6 @@ import time
 import logging
 import logging.config
 from mintSheets import MintSheet
-import inspect
 import os
 import thompco_utils
 
@@ -27,7 +26,7 @@ import thompco_utils
 
 class MintCheck:
     def __init__(self):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger = thompco_utils.get_logger()
         self.args = None
         self.accounts = None
         self.mint_transactions = None
@@ -36,6 +35,7 @@ class MintCheck:
                                      validate=self.args.validate_ini)
         self.now = datetime.datetime.combine(datetime.date.today(), datetime.time())
         self.prompt_for_text = None
+        self.mint = None
         logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
 
     def connect(self):
@@ -43,54 +43,35 @@ class MintCheck:
                                    headless=self.config.headless, mfa_method="sms")
 
     def _get_data(self, start_date):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger = thompco_utils.get_logger()
         logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
         if self.config.debug_mint_download:
             logger.debug("Connecting to Mint...")
-            mint = self.connect()
-            if self.args.live:
-                logger.debug("Refreshing Mint")
-                mint.initiate_account_refresh()
-                logger.debug("Closing the Mint connection")
-                mint.close()
-                sleep_time = 5 * 60 + randint(0, 5 * 60)  # sleep 5 minutes + some random time while mint refreshes
-                logger.info("Waiting for Mint to update accounts. Starting to sleep at "
-                            + datetime.datetime.now().strftime('%H:%M:%S') + " for "
-                            + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds')
-                            + ", waking at " + (datetime.datetime.now() +
-                                                datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
-                time.sleep(sleep_time)
-                logger.debug("Reconnecting to Mint...")
-                mint = self.connect()
+            if self.mint is None:
+                self.mint = self.connect()
+            else:
+                self.mint.driver.refresh()
             logger.info("getting accounts...")
-            if True:  # saves the raw mint data and stores it in a local file before proceeding
-                accounts = mint.get_accounts(get_detail=True)
-                # with open("raw_accounts.pkl", 'wb') as handle:
-                #    cPickle.dump(accounts, handle)
-            else:  # reads raw mint data from a local file
-                with open("raw_accounts.pkl", 'rb') as handle:
-                    accounts = cPickle.load(handle)
-            self.accounts = mintObjects.MintAccounts(accounts)
+            self.accounts = self.mint.get_accounts(get_detail=False)
             logger.info("Getting transactions...")
-            self.mint_transactions = mintObjects.MintTransactions(
-                mint.get_transactions_json(include_investment=False, skip_duplicates=self.config.mint_remove_duplicates,
-                                           start_date=start_date.strftime('%m/%d/%y')))
+            self.mint_transactions = self.mint.get_transactions_json(include_investment=False,
+                                                                     skip_duplicates=self.config.mint_remove_duplicates,
+                                                                     start_date=start_date.strftime('%m/%d/%y'))
             logger.debug("pickling mint objects...")
             self.pickle_mint()
         else:
-            logger.debug("unpicking mint objects...")
             self.unpickle_mint()
-            if self.config.debug_debugging:
-                self.accounts.dump()
-                self.mint_transactions.dump()
+        self.mint_transactions = mintObjects.MintTransactions(self.mint_transactions)
+        if self.config.debug_debugging:
+            self.accounts.dump()
+            self.mint_transactions.dump()
 
         logger.info("assembling \"paid from\" accounts")
         for paid_from in self.config.paid_from:
-            for account in self.accounts.accounts:
+            for account in self.accounts:
                 if paid_from["debit account"] == account["accountName"]:
                     paid_from["balance"] = account["value"]
                     break
-        pass
 
     @staticmethod
     def _get_args():
@@ -153,12 +134,16 @@ class MintCheck:
                 report.send_data()
 
     def pickle_mint(self):
+        logger = thompco_utils.get_logger()
+        logger.debug("pickling mint objects...")
         if self.config.debug_mint_pickle_file is not None:
             with open(self.config.debug_mint_pickle_file, 'wb') as handle:
                 cPickle.dump(self.accounts, handle)
                 cPickle.dump(self.mint_transactions, handle)
 
     def unpickle_mint(self):
+        logger = thompco_utils.get_logger()
+        logger.debug("unpicking mint objects...")
         if self.config.debug_mint_pickle_file is not None:
             with open(self.config.debug_mint_pickle_file, 'rb') as handle:
                 self.accounts = cPickle.load(handle)
@@ -166,52 +151,58 @@ class MintCheck:
 
 
 def main():
+    logger = thompco_utils.get_logger()
     local_path = os.path.dirname(os.path.abspath(__file__))
     log_configuration_file = os.path.join(local_path, 'logging.conf')
     logging.config.fileConfig(log_configuration_file)
-    logger = logging.getLogger(inspect.stack()[0][3])
     logger.info("Getting logging configuration from:" + log_configuration_file)
-    mint_check = MintCheck()
-    logger = logging.getLogger(inspect.stack()[0][3])
-    try:
-        if mint_check.args.live:
-            sleep_time = randint(0, 60 * mint_check.config.general_sleep)
-            logger.info("Waiting a random time so we don't connect to Mint at the same time every day."
-                        + "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') + " for "
-                        + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds')
-                        + ", waking at "
-                        + (datetime.datetime.now() + datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
-            time.sleep(sleep_time)
-        mint_check.collect_and_send()
-    except Exception as e:
-        if "Session has expired" not in e.message:
-            logger.critical("Exception caught!")
-            type_, value_, traceback_ = sys.exc_info()
-            traceback.print_exc()
-            tb = traceback.format_exception(type_, value_, traceback_)
-            for line in tb:
-                logger.critical(line)
-            logger.critical("Last exception follows:")
-            type_, value_, traceback_ = sys.exc_info()
-            traceback.print_exc()
-            message = "<html>"
-            message += "<b><center>Problem with Mint Checker</center></b><br>"
-            tb = traceback.format_exception(type_, value_, traceback_)
-            for line in tb:
-                message += line + "<br>"
-                logger.critical(line)
-            message += "\nLog information:\n"
-            email_sender = EmailSender(mint_check.config.email_connection)
-            for email_to in mint_check.config.general_exceptions_to:
-                if mint_check.config.debug_copy_admin:
-                    cc = mint_check.config.general_admin_email
-                else:
-                    cc = None
-                try:
-                    email_sender.send(to_email=email_to, subject="Exception caught in Mint Checker", message=message,
-                                      attach_file=thompco_utils.get_log_file_name())
-                except:
-                    email_sender.send(to_email=email_to, subject="Exception caught in Mint Checker", message=message)
+    success = False
+    mint_check = None
+    for attempt in range(3):
+        # Occasionally Mint fails with strange exceptions.  This loop will try several times before giving up.
+        # Note that each failure will email the exception to the appropriate recipients
+        if not success:
+            if mint_check is None:
+                mint_check = MintCheck()
+            try:
+                if mint_check.args.live:
+                    sleep_time = randint(0, 60 * mint_check.config.general_sleep)
+                    logger.info("Waiting a random time so we don't connect to Mint at the same time every day."
+                                + "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') + " for "
+                                + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds')
+                                + ", waking at "
+                                + (datetime.datetime.now() +
+                                   datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
+                    time.sleep(sleep_time)
+                mint_check.collect_and_send()
+                success = True
+            except Exception as e:
+                if "Session has expired" not in e.message:
+                    mint_check.mint.driver.quit()
+                    logger.critical("Exception caught!")
+                    type_, value_, traceback_ = sys.exc_info()
+                    traceback.print_exc()
+                    tb = traceback.format_exception(type_, value_, traceback_)
+                    for line in tb:
+                        logger.critical(line)
+                    logger.critical("Last exception follows:")
+                    type_, value_, traceback_ = sys.exc_info()
+                    traceback.print_exc()
+                    message = "<html>"
+                    message += "<b><center>Problem with Mint Checker</center></b><br>"
+                    tb = traceback.format_exception(type_, value_, traceback_)
+                    for line in tb:
+                        message += line + "<br>"
+                        logger.critical(line)
+                    message += "\nLog information:\n"
+                    email_sender = EmailSender(mint_check.config.email_connection)
+                    for email_to in mint_check.config.general_exceptions_to:
+                        try:
+                            email_sender.send(to_email=email_to, subject="Exception caught in Mint Checker",
+                                              message=message, attach_file=thompco_utils.get_log_file_name())
+                        except Exception as e:
+                            email_sender.send(to_email=email_to, subject="Exception caught in Mint Checker",
+                                              message=message)
     logger.info("Done!")
 
 
