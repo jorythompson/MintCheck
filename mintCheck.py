@@ -47,10 +47,7 @@ class MintCheck:
         logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
         if self.config.debug_mint_download:
             logger.debug("Connecting to Mint...")
-            if self.mint is None:
-                self.mint = self.connect()
-            else:
-                self.mint.driver.refresh()
+            self.mint = self.connect()
             logger.info("getting accounts...")
             self.accounts = self.mint.get_accounts(get_detail=False)
             logger.info("Getting transactions...")
