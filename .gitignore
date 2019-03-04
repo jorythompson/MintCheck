@@ -1,5 +1,6 @@
 *.pickle
 chromedriver
+chromedriver.exe
 google-chrome.deb
 payment*.ini
 home.ini
