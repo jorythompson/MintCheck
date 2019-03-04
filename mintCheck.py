@@ -178,8 +178,14 @@ def main():
                 success = True
             except Exception as e:
                 if "Session has expired" not in e.message:
-                    mint_check.mint.driver.quit()
                     logger.critical("Exception caught!")
+                    print traceback.format_exc()
+                    if mint_check is None:
+                        logger.critical("mint_check is None")
+                    elif mint_check.mint is None:
+                        logger.critical("mint_check.mint is None")
+                    else:
+                        mint_check.mint.driver.quit()
                     type_, value_, traceback_ = sys.exc_info()
                     traceback.print_exc()
                     tb = traceback.format_exception(type_, value_, traceback_)

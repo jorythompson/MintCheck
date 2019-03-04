@@ -121,8 +121,6 @@ class PrettyPrint:
                 for account in self.accounts:
                     if fi == account["fiName"] and self.config.mint_ignore_accounts not in account["accountName"] and \
                             (account["accountName"] in user.active_accounts or "all" in user.active_accounts):
-                        if "SunTrust" in account["fiName"]:
-                            pass
                         activity = True
                         if account not in handled_accounts:
                             # handled_accounts.append(account)
@@ -165,7 +163,8 @@ class PrettyPrint:
                                 renamed_account = user.rename_accounts[account["accountName"]]
                             except KeyError:
                                 renamed_account = account["accountName"]
-                            transactions, total = self.transactions.get_transactions(fi, account["accountName"], start_date)
+                            transactions, total = self.transactions.get_transactions(fi, account["accountName"],
+                                                                                     start_date)
                             if len(transactions) > 0:
                                 tags.h3(renamed_account + " (Account " +
                                         account["yodleeAccountNumberLast4"].replace("...", "") + ") has a balance of " +
@@ -216,32 +215,6 @@ class PrettyPrint:
             with activity_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h5("No Transactions For This Period", align="center")
         return activity_html, bad_transactions
-
-    """
-    def get_transactions_by_fi(self, start_date):
-        transactions_html = tags.html()
-        with transactions_html.add(tags.body()).add(tags.div(id='content')):
-            for fi in self.fis:
-                account_names = self.transactions.get_accounts(fi, start_date)
-                for account_name in account_names:
-                    mint_account = self.accounts.get_account(account_name)
-                    if mint_account
-                    printed_title = False
-                    transactions, total = self.transactions.get_transactions(fi, account_name, start_date)
-                    for transaction in transactions:
-                        if not printed_title:
-                            tags.h1(fi + "/" + transaction["account" + "Total=$" + locale.currency(total, grouping=True), style="color:" + fg_color
-                                             + ";text-align:center")
-                            print fi, transaction["account"], locale.currency(total, grouping=True)
-                            printed_title = True
-                        if transaction["fi"] == fi:
-                            if transaction["isDebit"]:
-                                multiplier = -1
-                            else:
-                                multiplier = 1
-                            print transaction["date"].strftime("%m/%d/%y"), multiplier * transaction["amount"], transaction["merchant"], transaction["category"]
-            return transactions_html
-    """
 
     def create_balance_warnings(self, balance_warnings, user):
         logger = thompco_utils.get_logger()
