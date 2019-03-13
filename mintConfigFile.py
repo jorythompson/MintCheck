@@ -1,4 +1,4 @@
-import ConfigParser
+from configparser import ConfigParser
 import ast
 import logging.config
 import logging.handlers
@@ -201,16 +201,16 @@ class MintUser:
 def dump_config_value(key, value=None):
     if value is None:
         print
-        print "[" + key + "]"
+        print("[" + key + "]")
     else:
-        print key + ":" + str(value)
+        print(key + ":" + str(value))
 
 
 class MintConfigFile:
     def __init__(self, file_name, validate=False, test_email=False):
         logger = thompco_utils.get_logger()
         self.file_name = file_name
-        self.config = ConfigParser.ConfigParser()
+        self.config = ConfigParser()
         self.config.optionxform = str
         self.config.read(file_name)
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -571,11 +571,11 @@ if __name__ == "__main__":
         os.remove("payment_dates_" + mint_config.file_name)
     except:
         pass
-    print mint_config.get_next_payment_date("test", None)
-    print mint_config.get_next_payment_date("test", now + relativedelta(days=-2))
-    print mint_config.get_next_payment_date("test", None)
-    print mint_config.get_next_payment_date("test", now + relativedelta(days=-2))
-    print mint_config.get_next_payment_date("test", None)
-    print mint_config.get_next_payment_date("test", now + relativedelta(days=2))
-    print mint_config.get_next_payment_date("test", None)
-    print mint_config.get_next_payment_date("test", now + relativedelta(days=2))
+    print(mint_config.get_next_payment_date("test", None))
+    print(mint_config.get_next_payment_date("test", now + relativedelta(days=-2)))
+    print(mint_config.get_next_payment_date("test", None))
+    print(mint_config.get_next_payment_date("test", now + relativedelta(days=-2)))
+    print(mint_config.get_next_payment_date("test", None))
+    print(mint_config.get_next_payment_date("test", now + relativedelta(days=2)))
+    print(mint_config.get_next_payment_date("test", None))
+    print(mint_config.get_next_payment_date("test", now + relativedelta(days=2)))

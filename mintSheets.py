@@ -1,6 +1,6 @@
 import gspread
 import datetime
-import cPickle
+import pickle
 from dateutil import parser
 from mintConfigFile import MintConfigFile
 from oauth2client.service_account import ServiceAccountCredentials
@@ -158,10 +158,10 @@ class MintSheet:
                             worksheet = MintSheet.get_sheet(self.g_spread, sheet_name, tab_name)
                             list_of_lists = worksheet.get_all_values()
                             with open(pickle_file, 'wb') as handle:
-                                cPickle.dump(list_of_lists, handle)
+                                pickle.dump(list_of_lists, handle)
                         else:
                             with open(pickle_file, 'rb') as handle:
-                                list_of_lists = cPickle.load(handle)
+                                list_of_lists = pickle.load(handle)
                         row_count = sheet.start_row - 1
                         while True:
                             row_count += 1
@@ -193,14 +193,14 @@ def main():
     mint_spread = MintSheet(config, start_date)
     MintSheet.get_sheet(mint_spread.g_spread, "Transactions for West New Haven Plaza %Y", "test_tab %B")
     with open(config.debug_mint_pickle_file, 'rb') as handle:
-        cPickle.load(handle)
-        mint_transactions = cPickle.load(handle)
+        pickle.load(handle)
+        mint_transactions = pickle.load(handle)
 
     for user in config.users:
         if user.name == "Jordan":
             missing_transactions = mint_spread.get_missing_deposits(mint_transactions, user)
             for missing in missing_transactions:
-                print missing
+                print(missing)
 
 
 if __name__ == "__main__":

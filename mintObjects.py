@@ -12,7 +12,7 @@ def clean_dictionary(name, obj):
         for transaction in obj:
             for key in transaction:
                 clean_key = to_string(key)
-                transaction[clean_key] = transaction.pop(key)
+                # transaction[clean_key] = transaction.pop(key)
                 transaction[clean_key] = to_string(transaction[clean_key])
                 transaction[clean_key] = parse_all(clean_key, transaction[clean_key])
         logger.debug(to_string(obj))
@@ -103,7 +103,7 @@ class MintTransactions:
     def get_financial_institutions(self, start_date):
         fis = []
         for transaction in self.transactions:
-            if transaction["fi"] not in fis and transaction["date"] >= start_date:
+            if transaction["fi"] not in fis and transaction['date'] is not None and transaction["date"] >= start_date:
                 fis.append(transaction["fi"])
         return fis
 
@@ -166,7 +166,7 @@ class MintAccounts:
 
 
 def to_string(obj):
-    if isinstance(obj, basestring):
+    if isinstance(obj, str):
         return re.sub(r'[^\x00-\x7f]',r'', obj)
     else:
         return str(obj)

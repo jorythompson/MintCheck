@@ -2,7 +2,7 @@ import smtplib
 import gzip
 import io
 import os
-import ConfigParser
+from configparser import ConfigParser
 import thompco_utils
 
 if os.name == 'nt' or os.name == "posix":

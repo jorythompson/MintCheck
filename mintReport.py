@@ -1,16 +1,18 @@
-import cPickle
+import pickle
 import dominate.tags as tags
 from dominate.util import raw
 from emailSender import EmailSender
 import locale
 from operator import itemgetter
 import datetime
-from itertools import tee, chain, izip, islice
+from itertools import tee, chain, islice
 from mintCheck import MintCheck
 from datetime import datetime, date, time
 import os
 import dateutil
 import thompco_utils
+import functools
+import operator
 
 
 BORDER_STYLE = "border-bottom:1px solid black"
@@ -31,7 +33,7 @@ class PrettyPrint:
         previous_iterable, items, next_iterable = tee(some_iterable, 3)
         previous_iterable = chain([None], previous_iterable)
         next_iterable = chain(islice(next_iterable, 1, None), [None])
-        return izip(previous_iterable, items, next_iterable)
+        return zip(previous_iterable, items, next_iterable)
 
     @staticmethod
     def multi_key_sort(items, columns):
@@ -40,13 +42,13 @@ class PrettyPrint:
 
         def comparator(left, right):
             for fn, multiplier in comparators:
-                result = cmp(fn(left), fn(right))
+                result = operator.le(fn(left), fn(right))
                 if result:
                     return multiplier * result
             else:
                 return 0
 
-        return sorted(items, cmp=comparator)
+        return sorted(items, key=functools.cmp_to_key(comparator))
 
     @staticmethod
     def create_debit_accounts(debit_accounts, missing_debit_accounts):
@@ -473,14 +475,14 @@ class PrettyPrint:
     def pickle_previous_accounts(self, new_accounts):
         if self.config.previous_accounts_pickle_file is not None:
             with open(self.config.previous_accounts_pickle_file, 'wb') as handle:
-                cPickle.dump(new_accounts, handle)
+                pickle.dump(new_accounts, handle)
 
     def unpickle_previous_accounts(self):
         previous_accounts = []
         if self.config.previous_accounts_pickle_file is not None and os.path.isfile(
                 self.config.previous_accounts_pickle_file):
             with open(self.config.previous_accounts_pickle_file, 'rb') as handle:
-                previous_accounts = cPickle.load(handle)
+                previous_accounts = pickle.load(handle)
         return previous_accounts
 
     @staticmethod

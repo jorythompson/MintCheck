@@ -4,7 +4,7 @@ import mintapi
 import mintObjects
 import mintReport
 import argparse
-import cPickle
+import pickle
 import datetime
 from dateutil.relativedelta import relativedelta
 from mintConfigFile import MintConfigFile
@@ -135,16 +135,16 @@ class MintCheck:
         logger.debug("pickling mint objects...")
         if self.config.debug_mint_pickle_file is not None:
             with open(self.config.debug_mint_pickle_file, 'wb') as handle:
-                cPickle.dump(self.accounts, handle)
-                cPickle.dump(self.mint_transactions, handle)
+                pickle.dump(self.accounts, handle)
+                pickle.dump(self.mint_transactions, handle)
 
     def unpickle_mint(self):
         logger = thompco_utils.get_logger()
         logger.debug("unpicking mint objects...")
         if self.config.debug_mint_pickle_file is not None:
             with open(self.config.debug_mint_pickle_file, 'rb') as handle:
-                self.accounts = cPickle.load(handle)
-                self.mint_transactions = cPickle.load(handle)
+                self.accounts = pickle.load(handle)
+                self.mint_transactions = pickle.load(handle)
 
 
 def main():
@@ -174,9 +174,9 @@ def main():
                 mint_check.collect_and_send()
                 success = True
             except Exception as e:
-                if "Session has expired" not in e.message:
+                if "Session has expired" not in str(e):
                     logger.critical("Exception caught!")
-                    print traceback.format_exc()
+                    print(traceback.format_exc())
                     if mint_check is None:
                         logger.critical("mint_check is None")
                     elif mint_check.mint is None:
