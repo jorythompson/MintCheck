@@ -58,7 +58,8 @@ class MintCheck:
                 if datetime.datetime.now() > next_message_time:
                     logger.debug(message.format((stop_time - datetime.datetime.now()).seconds/60.0))
                     next_message_time = datetime.datetime.now() + datetime.timedelta(seconds=message_sleep_time)
-            self.mint.close()
+            if self.mint is not None:
+                self.mint.close()
             logger.debug("reconnecting to Mint to get data...")
             self.mint = self.connect()
             logger.info("getting accounts...")

@@ -1,4 +1,4 @@
-from configparser import ConfigParser
+from configparser import ConfigParser, DuplicateSectionError
 import ast
 import logging.config
 import logging.handlers
@@ -9,10 +9,9 @@ import sys
 from emailSender import EmailSender
 import datetime
 import dateutil
-import os
 from dateutil.relativedelta import relativedelta
-from osUtils import get_os
 import thompco_utils
+import os
 
 # mint connection block
 MINT_TITLE = "mint connection"
@@ -538,16 +537,15 @@ class MintConfigFile:
         return next_date
 
     def get_next_payment_date(self, account_name, next_date):
-        next_date = str(next_date)
         if next_date == "":
             next_date = None
-        if next_date is not None:
+        if next_date is not None and type(next_date) is str:
             next_date = dateutil.parser.parse(next_date)
         logger = thompco_utils.get_logger()
         logger.debug("starting")
         try:
             config_file = "payment_dates_" + self.file_name
-            config = ConfigParser.ConfigParser()
+            config = ConfigParser()
             config.read(config_file)
             if next_date is None:
                 try:
@@ -558,7 +556,7 @@ class MintConfigFile:
             else:
                 try:
                     config.add_section(BILL_DATES_TITLE)
-                except ConfigParser.DuplicateSectionError:
+                except config:
                     pass
                 config.set(BILL_DATES_TITLE, account_name, next_date.day)
                 config_file = open(config_file, "w")
