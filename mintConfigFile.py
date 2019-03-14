@@ -33,6 +33,7 @@ GENERAL_MAX_SLEEP = "max_sleep"
 GENERAL_EXCEPTIONS_TO = "exceptions_to"
 GENERAL_PICKLE_FOLDER = "pickle_folder"
 GENERAL_HTML_FOLDER = "html_folder"
+GENERAL_POST_CONNECT_SLEEP="post_connect_sleep"
 
 # USER block
 USER_EMAIL = "email"
@@ -314,6 +315,12 @@ class MintConfigFile:
         except Exception:
             self.general_html_folder = "html"
             missing_entry(GENERAL_TITLE, GENERAL_HTML_FOLDER, file_name, self.general_html_folder)
+        try:
+            self.post_connect_sleep = self.config.getfloat(GENERAL_TITLE, GENERAL_POST_CONNECT_SLEEP)
+        except Exception:
+            self.post_connect_sleep = 5
+        self.post_connect_sleep *= 60
+
         if not os.path.exists(self.general_html_folder):
             os.makedirs(self.general_html_folder)
 

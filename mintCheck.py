@@ -33,7 +33,7 @@ class MintCheck:
         self.args = MintCheck._get_args()
         self.config = MintConfigFile(self.args.config, test_email=self.args.validate_emails,
                                      validate=self.args.validate_ini)
-        self.now = datetime.datetime.combine(datetime.date.today(), datetime.time())
+        self.now = datetime.datetime.now()
         self.prompt_for_text = None
         self.mint = None
         logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
@@ -48,6 +48,16 @@ class MintCheck:
         if self.config.debug_mint_download:
             logger.debug("Connecting to Mint...")
             self.mint = self.connect()
+            message_sleep_time = 60
+            message = "Sleeping for {:.2f} minutes while Mint updates"
+            logger.debug(message.format(self.config.post_connect_sleep/60))
+            stop_time = datetime.datetime.now() + datetime.timedelta(seconds=self.config.post_connect_sleep)
+            next_message_time = datetime.datetime.now() + datetime.timedelta(seconds=message_sleep_time)
+            while datetime.datetime.now() < stop_time:
+                time.sleep(1)
+                if datetime.datetime.now() > next_message_time:
+                    logger.debug(message.format((stop_time - datetime.datetime.now()).seconds/60.0))
+                    next_message_time = datetime.datetime.now() + datetime.timedelta(seconds=message_sleep_time)
             logger.info("getting accounts...")
             self.accounts = self.mint.get_accounts(get_detail=False)
             logger.info("Getting transactions...")
