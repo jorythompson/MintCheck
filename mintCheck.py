@@ -46,7 +46,7 @@ class MintCheck:
         logger = thompco_utils.get_logger()
         logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
         if self.config.debug_mint_download:
-            logger.debug("Connecting to Mint...")
+            logger.debug("Initially connecting to Mint...")
             self.mint = self.connect()
             message_sleep_time = 60
             message = "Sleeping for {:.2f} minutes while Mint updates"
@@ -58,6 +58,9 @@ class MintCheck:
                 if datetime.datetime.now() > next_message_time:
                     logger.debug(message.format((stop_time - datetime.datetime.now()).seconds/60.0))
                     next_message_time = datetime.datetime.now() + datetime.timedelta(seconds=message_sleep_time)
+            self.mint.close()
+            logger.debug("reconnecting to Mint to get data...")
+            self.mint = self.connect()
             logger.info("getting accounts...")
             self.accounts = self.mint.get_accounts(get_detail=False)
             logger.info("Getting transactions...")
