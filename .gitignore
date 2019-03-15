@@ -3,8 +3,7 @@ chromedriver
 chromedriver.exe
 google-chrome.deb
 payment*.ini
-home.ini
-work.ini
+*.ini
 laptop-home.ini
 laptop.ini
 *.html
