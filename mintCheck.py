@@ -35,9 +35,11 @@ class MintCheck:
         self.now = datetime.datetime.now()
         self.prompt_for_text = None
         self.mint = None
+        self.status = "constructing"
         logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
 
     def connect(self):
+        self.status = "creating Mint API connection"
         return mintapi.Mint.create(email=self.config.mint_username, password=self.config.mint_password,
                                    headless=self.config.headless, mfa_method="sms")
 
@@ -46,6 +48,7 @@ class MintCheck:
         logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
         if self.config.debug_mint_download:
             logger.debug("Initially connecting to Mint...")
+            self.status = "initially connecting"
             self.mint = self.connect()
             message_sleep_time = 60
             message = "Sleeping for {:.2f} minutes while Mint updates"
@@ -60,6 +63,7 @@ class MintCheck:
             if self.mint is not None:
                 self.mint.close()
             logger.debug("reconnecting to Mint to get data...")
+            self.status = "reconnecting to collect data"
             self.mint = self.connect()
             logger.info("getting accounts...")
             self.accounts = self.mint.get_accounts(get_detail=False)
@@ -214,9 +218,8 @@ def main():
                         logger.critical(line)
                     message += "\nLog information:\n"
                     email_sender = EmailSender(mint_check.config.email_connection)
-                    subject = "Exception {} of {} caught in Mint Checker at {}".format(attempt+1,
-                                                                                       mint_check.config.max_retries,
-                                                                                       mint_check.now)
+                    subject = "Exception {} of {} caught in Mint Checker at {} while {}".\
+                        format(attempt+1, mint_check.config.max_retries, mint_check.now, mint_check.status)
                     for email_to in mint_check.config.general_exceptions_to:
                         try:
                             email_sender.send(to_email=email_to,

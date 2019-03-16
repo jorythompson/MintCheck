@@ -163,7 +163,6 @@ class MintUser:
             self.rename_accounts = ast.literal_eval("{" + cfg_mgr.config.get(name,
                                                                              USER_RENAME_ACCOUNT) + "}")
         except Exception as e:
-            logger.exception(e)
             config_utils.ConfigManager.missing_entry(name, USER_RENAME_ACCOUNT, cfg_mgr.file_name, "")
             self.rename_accounts = {}
         try:
@@ -172,7 +171,6 @@ class MintUser:
                                                                            USER_RENAME_INSTITUTION) +
                                                         "}")
         except Exception as e:
-            logger.exception(e)
             config_utils.ConfigManager.missing_entry(name, USER_RENAME_INSTITUTION,
                                                      cfg_mgr.file_name, "")
             self.rename_institutions = {}
