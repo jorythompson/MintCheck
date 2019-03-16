@@ -2,7 +2,14 @@
 chromedriver
 chromedriver.exe
 google-chrome.deb
+<<<<<<< HEAD
 *.ini
+=======
+payment*.ini
+*.ini
+laptop-home.ini
+laptop.ini
+>>>>>>> 44348fba9b34b430f710b8d26a20ce7df179632c
 *.html
 *.pyc
 log.*

@@ -1,4 +1,3 @@
-from configparser import ConfigParser
 import ast
 import logging.config
 import logging.handlers
