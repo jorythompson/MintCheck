@@ -31,8 +31,7 @@ class MintCheck:
         self.accounts = None
         self.mint_transactions = None
         self.args = MintCheck._get_args()
-        self.config = MintConfigFile(self.args.config, test_email=self.args.validate_emails,
-                                     validate=self.args.validate_ini)
+        self.config = MintConfigFile(self.args.config, test_email=self.args.validate_emails)
         self.now = datetime.datetime.now()
         self.prompt_for_text = None
         self.mint = None
@@ -167,8 +166,8 @@ def main():
     logging.config.fileConfig(log_configuration_file)
     logger.info("Getting logging configuration from:" + log_configuration_file)
     success = False
-    mint_check = None
-    for attempt in range(3):
+    mint_check = MintCheck()
+    for attempt in range(mint_check.config.max_retries):
         # Occasionally Mint fails with strange exceptions.  This loop will try several times before giving up.
         # Note that each failure will email the exception to the appropriate recipients
         if not success:
@@ -194,6 +193,8 @@ def main():
                         logger.critical("mint_check is None")
                     elif mint_check.mint is None:
                         logger.critical("mint_check.mint is None")
+                    elif mint_check.mint.mint_driver is None:
+                        logger.critical("mint_check.mint.driver is None")
                     else:
                         mint_check.mint.driver.quit()
                     type_, value_, traceback_ = sys.exc_info()
@@ -212,12 +213,14 @@ def main():
                         logger.critical(line)
                     message += "\nLog information:\n"
                     email_sender = EmailSender(mint_check.config.email_connection)
+                    subject = "Exception {} caught in Mint Checker at {}".format(attempt+1, mint_check.now)
                     for email_to in mint_check.config.general_exceptions_to:
                         try:
-                            email_sender.send(to_email=email_to, subject="Exception caught in Mint Checker",
+                            email_sender.send(to_email=email_to,
+                                              subject=subject,
                                               message=message, attach_file=thompco_utils.get_log_file_name())
                         except Exception as e:
-                            email_sender.send(to_email=email_to, subject="Exception caught in Mint Checker",
+                            email_sender.send(to_email=email_to, subject=subject,
                                               message=message)
     logger.info("Done!")
 

@@ -24,15 +24,18 @@ class EmailConnection:
     PASSWORD = "password"
     FROM = "from"
 
-    def __init__(self, conf=None, username=None, password=None, from_user=None):
-        if conf is None:
+    def __init__(self, cfg_mgr=None, username=None, password=None, from_user=None, filename=None, create=None):
+        if cfg_mgr is None:
             self.username = username
             self.password = password
             self.from_user = from_user
         else:
-            self.username = conf.get(EmailConnection.TITLE, EmailConnection.USERNAME)
-            self.password = conf.get(EmailConnection.TITLE, EmailConnection.PASSWORD)
-            self.from_user = conf.get(EmailConnection.TITLE, EmailConnection.FROM)
+            self.username = cfg_mgr.read_entry(EmailConnection.TITLE, EmailConnection.USERNAME,
+                                               "myname@google.com", str)
+            self.password = cfg_mgr.read_entry(EmailConnection.TITLE, EmailConnection.PASSWORD,
+                                               "mySecretPassword", str)
+            self.from_user = cfg_mgr.read_entry(EmailConnection.TITLE, EmailConnection.FROM,
+                                                "Mint Checker", str)
 
 
 class EmailSender:

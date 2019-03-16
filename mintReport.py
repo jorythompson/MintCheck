@@ -118,8 +118,6 @@ class PrettyPrint:
         with activity_html.add(tags.body()).add(tags.div(id='content')):
             for fi in self.fis:
                 fis_title_saved = False
-                # account_names = self.transactions.get_accounts(fi, start_date)
-                # for account_name in account_names:
                 for account in self.accounts:
                     if fi == account["fiName"] and self.config.mint_ignore_accounts not in account["accountName"] and \
                             (account["accountName"] in user.active_accounts or "all" in user.active_accounts):
@@ -134,8 +132,7 @@ class PrettyPrint:
                             elif account["accountType"] == "credit":
                                 fg_color = self.config.account_type_credit_fg
                                 account_message += " credit card"
-                                next_payment_date = self.config.get_next_payment_date(
-                                    account["accountName"], account["dueDate"])
+                                next_payment_date = self.config.get_next_payment_date(account["dueDate"])
                                 next_payment_amount = account["dueAmt"]
                                 if next_payment_date is None:
                                     next_payment_date = " on undetermined date"
@@ -365,8 +362,7 @@ class PrettyPrint:
                                     tags.td(account["name"])
                                     tags.td(locale.currency(account["currentBalance"], grouping=True), align="right")
                                     if account["accountType"] == "credit":
-                                        next_payment_date = self.config.get_next_payment_date(
-                                            account["name"], account["dueDate"])
+                                        next_payment_date = self.config.get_next_payment_date(account["dueDate"])
                                         if next_payment_date is None:
                                             tags.td("N/A", align="center")
                                         else:
@@ -575,7 +571,6 @@ class PrettyPrint:
                 self.fis = self.transactions.get_financial_institutions(start_date)
                 activity_html, bad_transactions = \
                     self.create_activity(start_date, user, handled_accounts, user_accounts)
-                # transactions_html = self.get_transactions_by_fi(start_date)
                 balance_warnings_html = self.create_balance_warnings(balance_warnings, user)
                 fees_html = self.get_fees(bad_transactions, user)
                 accounts_html, accounts, debit_accounts, missing_debit_accounts = self.get_accounts(user)
