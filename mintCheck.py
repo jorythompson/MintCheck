@@ -168,7 +168,7 @@ def main():
     logger.info("Getting logging configuration from:" + log_configuration_file)
     success = False
     mint_check = MintCheck()
-    for attempt in range(mint_check.config.max_retries):
+    for attempt in range(mint_check.config.max_retries-1):
         # Occasionally Mint fails with strange exceptions.  This loop will try several times before giving up.
         # Note that each failure will email the exception to the appropriate recipients
         if not success:
@@ -194,7 +194,7 @@ def main():
                         logger.critical("mint_check is None")
                     elif mint_check.mint is None:
                         logger.critical("mint_check.mint is None")
-                    elif mint_check.mint.mint_driver is None:
+                    elif mint_check.mint.driver is None:
                         logger.critical("mint_check.mint.driver is None")
                     else:
                         mint_check.mint.driver.quit()
@@ -214,7 +214,9 @@ def main():
                         logger.critical(line)
                     message += "\nLog information:\n"
                     email_sender = EmailSender(mint_check.config.email_connection)
-                    subject = "Exception {} caught in Mint Checker at {}".format(attempt+1, mint_check.now)
+                    subject = "Exception {} of {} caught in Mint Checker at {}".format(attempt+1,
+                                                                                       mint_check.config.max_retries,
+                                                                                       mint_check.now)
                     for email_to in mint_check.config.general_exceptions_to:
                         try:
                             email_sender.send(to_email=email_to,
