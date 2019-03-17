@@ -10,7 +10,7 @@ from mintCheck import MintCheck
 from datetime import datetime, date, time
 import os
 import dateutil
-import thompco_utils
+from thompcoutils.log_utils import get_logger, get_log_file_name
 import functools
 import operator
 
@@ -52,7 +52,7 @@ class PrettyPrint:
 
     @staticmethod
     def create_debit_accounts(debit_accounts, missing_debit_accounts):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         debit_accounts_html = tags.html()
         if len(debit_accounts) > 0 or len(missing_debit_accounts) > 0:
             sorted_debit_accounts = PrettyPrint.multi_key_sort(debit_accounts,
@@ -216,7 +216,7 @@ class PrettyPrint:
         return activity_html, bad_transactions
 
     def create_balance_warnings(self, balance_warnings, user):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         balance_warnings_html = tags.html()
         if len(balance_warnings) > 0:
             logger.info("assembling balance warnings")
@@ -272,7 +272,7 @@ class PrettyPrint:
 
     @staticmethod
     def get_fees(bad_transactions, user):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         fees_html = tags.html()
         if len(bad_transactions) > 0:
             logger.info("assembling bad transactions")
@@ -320,7 +320,7 @@ class PrettyPrint:
         return fees_html
 
     def get_accounts(self, user):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         accounts = []
         logger.info("assembling account lists")
         for account in self.accounts:
@@ -417,7 +417,7 @@ class PrettyPrint:
         return accounts_html, accounts, debit_accounts, missing_debit_accounts
 
     def create_debug_section(self):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         debug_html = None
         if not self.config.debug_send_email or not self.config.debug_mint_download \
                 or not self.config.debug_sheets_download:
@@ -434,7 +434,7 @@ class PrettyPrint:
         return debug_html
 
     def create_deposit_warnings(self, user):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         sheets = self.sheets.get_missing_deposits(self.transactions, user)
         deposit_warnings_html = tags.html()
         if len(sheets) > 0:
@@ -486,53 +486,10 @@ class PrettyPrint:
         # new_accounts = []
         # missing_accounts = []
         missing_accounts_html = tags.html()
-        # previous_accounts = self.unpickle_previous_accounts()
-        '''
-        for previous_account in previous_accounts:
-            found = False
-            for current_account in self.accounts.accounts:
-                if previous_account['accountName'] == current_account['accountName'] and \
-                                previous_account['fiName'] == current_account['fiName']:
-                    found = True
-                    break
-            if not found:
-                missing_accounts.append(previous_account)
-        for current_account in self.accounts.accounts:
-            found = False
-            for previous_account in previous_accounts:
-                if previous_account['accountName'] == current_account['accountName'] and \
-                                previous_account['fiName'] == current_account['fiName']:
-                    found = True
-                    break
-            if not found:
-                new_accounts.append(current_account)
-        self.pickle_previous_accounts(new_accounts + previous_accounts)
-        with missing_accounts_html.add(tags.body()).add(tags.div(id='content')):
-            if len(new_accounts) > 0:
-                tags.h1("New Accounts", align="center")
-                with tags.table(rules="cols", frame="box", align="center"):
-                    with tags.thead(style=BORDER_STYLE):
-                        tags.th("Financial Institution")
-                        tags.th("Account")
-                    for account in new_accounts:
-                        with tags.tr(style=BORDER_STYLE):
-                            tags.td(account['fiName'])
-                            tags.td(account['accountName'])
-            if len(missing_accounts) > 0:
-                tags.h1("Missing Accounts to Debit From", align="center")
-                with tags.table(rules="cols", frame="box", align="center"):
-                    with tags.thead(style=BORDER_STYLE):
-                        tags.th("Financial Institution")
-                        tags.th("Account")
-                    for account in missing_accounts:
-                        with tags.tr(style="color:red"):
-                            tags.td(account['fiName'])
-                            tags.td(account['accountName'])
-        '''
         return missing_accounts_html
 
     def send_data(self):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         logger.debug("starting send_data")
         user_accounts = {}
         missing_accounts_html = self.identify_missing_accounts()
@@ -626,7 +583,7 @@ class PrettyPrint:
                     for email in user.email:
                         logger.debug("Sending email to " + email)
                         if email.lower() == self.config.general_admin_email.lower() and self.config.debug_attach_log:
-                            log_file = thompco_utils.get_log_file_name()
+                            log_file = get_log_file_name()
                         else:
                             log_file = None
                         email_sender.send(to_email=email, subject=user.subject, message=message, attach_file=log_file)

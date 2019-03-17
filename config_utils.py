@@ -1,5 +1,5 @@
 import sys
-import thompco_utils
+from thompcoutils.log_utils import get_logger
 from configparser import ConfigParser
 import os
 
@@ -16,7 +16,7 @@ class ConfigManager:
 
     @staticmethod
     def missing_entry(section, entry, file_name, default_value=None):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         logger.debug("starting")
         if default_value is None:
             log_fn = logger.critical
@@ -52,9 +52,10 @@ class ConfigManager:
     def read_entry(self, section, entry, default_value, value_type, notes=None):
         value = None
         if self.create:
+            # noinspection PyBroadException
             try:
                 self.config.add_section(section)
-            except Exception as e:
+            except Exception:
                 pass
             if notes is not None:
                 self.notes.append({"section": section,
@@ -62,6 +63,7 @@ class ConfigManager:
                                    "notes": notes})
             self.config.set(section, entry, str(default_value))
         else:
+            # noinspection PyBroadException
             try:
                 if value_type is str:
                     value = self.config.get(section, entry)
@@ -80,9 +82,10 @@ class ConfigManager:
     def read_section(self, section, default_entries, notes=None):
         key_values = None
         if self.create:
+            # noinspection PyBroadException
             try:
                 self.config.add_section(section)
-            except Exception as e:
+            except Exception:
                 pass
             for entry in default_entries:
                 self.config.set(section, str(entry), default_entries[entry])

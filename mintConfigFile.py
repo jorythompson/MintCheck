@@ -7,9 +7,9 @@ from emailSender import EmailSender
 import datetime
 import dateutil
 from dateutil.relativedelta import relativedelta
-import thompco_utils
+from thompcoutils.log_utils import get_logger
+from thompcoutils.config_utils import ConfigManager
 import os
-import config_utils
 import platform
 
 # mint connection block
@@ -104,7 +104,7 @@ class BalanceWarning:
 
 class GoogleSheet:
     def __init__(self, section, default_day_error, cfg_mgr):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         self.billing_account = section
         self.sheet_name = cfg_mgr.config.get(section, SHEETS_NAME)
         self.amount_col = cfg_mgr.config.get(section, SHEETS_AMOUNT_COL)
@@ -116,13 +116,13 @@ class GoogleSheet:
             self.tab_name = cfg_mgr.config.get(section, SHEETS_TAB_NAME)
         except Exception as e:
             logger.exception(e)
-            config_utils.ConfigManager.missing_entry(section, SHEETS_TAB_NAME, cfg_mgr.file_name)
+            ConfigManager.missing_entry(section, SHEETS_TAB_NAME, cfg_mgr.file_name)
         try:
             print("section is {}".format(section))
             self.day_error = cfg_mgr.config.getint(section, SHEETS_DAY_ERROR)
         except Exception as e:
-            config_utils.ConfigManager.missing_entry(section, SHEETS_DAY_ERROR, cfg_mgr.file_name,
-                                                     default_day_error)
+            ConfigManager.missing_entry(section, SHEETS_DAY_ERROR, cfg_mgr.file_name,
+                                        default_day_error)
             self.day_error = default_day_error
 
     def dump(self):
@@ -140,7 +140,7 @@ class GoogleSheet:
 class MintUser:
     # Throws an exception if email and active_accounts are not set
     def __init__(self, name, cfg_mgr):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         self.name = name
         self.email = ast.literal_eval("[" + cfg_mgr.config.get(name, USER_EMAIL) + "]")
         try:
@@ -157,14 +157,14 @@ class MintUser:
                     raise Exception("invalid user frequency")
         except Exception as e:
             logger.exception(e)
-            config_utils.ConfigManager.missing_entry(name, USER_FREQUENCY, cfg_mgr.file_name)
+            ConfigManager.missing_entry(name, USER_FREQUENCY, cfg_mgr.file_name)
             self.frequency = "weekly"
         try:
             self.rename_accounts = ast.literal_eval("{" + cfg_mgr.config.get(name,
                                                                              USER_RENAME_ACCOUNT) + "}")
         except Exception as e:
             logger.exception(e)
-            config_utils.ConfigManager.missing_entry(name, USER_RENAME_ACCOUNT, cfg_mgr.file_name, "")
+            ConfigManager.missing_entry(name, USER_RENAME_ACCOUNT, cfg_mgr.file_name, "")
             self.rename_accounts = {}
         try:
             self.rename_institutions = ast.literal_eval("{" +
@@ -173,8 +173,7 @@ class MintUser:
                                                         "}")
         except Exception as e:
             logger.exception(e)
-            config_utils.ConfigManager.missing_entry(name, USER_RENAME_INSTITUTION,
-                                                     cfg_mgr.file_name, "")
+            ConfigManager.missing_entry(name, USER_RENAME_INSTITUTION, cfg_mgr.file_name, "")
             self.rename_institutions = {}
         self.active_accounts = ast.literal_eval("[" + cfg_mgr.config.get(name,
                                                                          USER_ACTIVE_ACCOUNTS) + "]")
@@ -199,21 +198,21 @@ def dump_config_value(key, value=None):
 
 class MintConfigFile:
     def __init__(self, file_name, validate=False, test_email=False, out_file=None):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         create = out_file is not None
-        cfg_mgr = config_utils.ConfigManager(file_name, create=create)
+        cfg_mgr = ConfigManager(file_name, create=create)
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
         logger.info("Starting session")
-        self.mint_username = cfg_mgr.read_entry(MINT_TITLE, MINT_USER_USERNAME, "Mint Username", str,
+        self.mint_username = cfg_mgr.read_entry(MINT_TITLE, MINT_USER_USERNAME, "Mint Username",
                                                 "username to access Mint")
-        self.mint_password = cfg_mgr.read_entry(MINT_TITLE, MINT_USER_PASSWORD, "Mint Password", str,
+        self.mint_password = cfg_mgr.read_entry(MINT_TITLE, MINT_USER_PASSWORD, "Mint Password",
                                                 "Password to access Mint")
-        self.headless = cfg_mgr.read_entry(MINT_TITLE, HEADLESS, "True", bool,
+        self.headless = cfg_mgr.read_entry(MINT_TITLE, HEADLESS, True,
                                            "True if you don't want chrome browser to display")
         self.mint_ignore_accounts = cfg_mgr.read_entry(MINT_TITLE, MINT_IGNORE_ACCOUNTS,
-                                                       "duplicate", str,
+                                                       "duplicate",
                                                        "accounts containing this string will be ignored")
-        self.mint_remove_duplicates = cfg_mgr.read_entry(MINT_TITLE, MINT_REMOVE_DUPLICATES, "True", bool,
+        self.mint_remove_duplicates = cfg_mgr.read_entry(MINT_TITLE, MINT_REMOVE_DUPLICATES, "True",
                                                          "Sometimes Mint will duplicate accounts and transactions,"
                                                          " setting this to True will help prevent this")
         colors = cfg_mgr.read_section(COLORS_TITLE,
@@ -225,9 +224,9 @@ class MintConfigFile:
             for color in colors:
                 self.color_tags[color] = ast.literal_eval("[" + colors[color].lower() + "]")
 
-        self.general_week_start = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_WEEK_START, "Monday", str,
+        self.general_week_start = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_WEEK_START, "Monday",
                                                      "The day of the week that week starts")
-        self.general_month_start = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_MONTH_START, 1, int,
+        self.general_month_start = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_MONTH_START, 1,
                                                       "The day of the month the month starts")
         balance_warnings = cfg_mgr.read_section(BALANCE_WARNINGS_TITLE,
                                                 {"Chase Checking": "< 25",
@@ -264,62 +263,62 @@ class MintConfigFile:
         if self.locale_vals is not None:
             locale.setlocale(locale.LC_ALL, self.locale_vals[platform.system()])
         self.general_admin_email = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_ADMIN_EMAIL,
-                                                      "admin@mydomain.com", str,
+                                                      "admin@mydomain.com",
                                                       "Google email address of the account mails will be sent from")
-        general_users = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_USERS, "\"user 1\", \"user 2\", \"all\"", str,
+        general_users = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_USERS, "\"user 1\", \"user 2\", \"all\"",
                                            "List of users to send emails to")
         if general_users is not None:
             self.general_users = ast.literal_eval("[" + general_users + "]")
         google_sheets = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_GOOGLE_SHEETS,
-                                           "\"all\", \"my google sheet\"", str,
+                                           "\"all\", \"my google sheet\"",
                                            "list of Google sheets to update")
         if google_sheets is not None:
             self.general_google_sheets = ast.literal_eval("[" + google_sheets + "]")
-        self.general_sleep = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_MAX_SLEEP, 10, int,
+        self.general_sleep = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_MAX_SLEEP, 10,
                                                 "Time to sleep before connecting to Mint\n"
                                                 "Useful when running this at the same time every day\n"
                                                 "(It will not look like a machine is hitting Mint)")
-        exceptions_to = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_EXCEPTIONS_TO, "errors@mydomein.com", str,
+        exceptions_to = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_EXCEPTIONS_TO, "errors@mydomein.com",
                                            "email address to send exceptions to (generally an admin)")
         if exceptions_to is not None:
             self.general_exceptions_to = ast.literal_eval("[" + exceptions_to + "]")
-        self.general_html_folder = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_HTML_FOLDER, "C:\\temp", str,
+        self.general_html_folder = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_HTML_FOLDER, "C:\\temp",
                                                       "location of html file (if printed)\nThis is for debugging")
         if self.general_html_folder is not None:
             if not os.path.exists(self.general_html_folder):
                 os.makedirs(self.general_html_folder)
 
-        self.post_connect_sleep = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_POST_CONNECT_SLEEP, 5, float,
+        self.post_connect_sleep = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_POST_CONNECT_SLEEP, 5.0,
                                                      "Time to sleep after connecting to Mint.\n"
                                                      "This allows Mint to collect data from your accounts before "
                                                      "grabbing the transactions")
         if self.post_connect_sleep is not None:
             self.post_connect_sleep *= 5
-        self.max_retries = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_MAX_RETRIES, 10, int,
+        self.max_retries = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_MAX_RETRIES, 10,
                                               "Maximum number of retries to connect to Mint before giving up")
-        self.debug_mint_download = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_MINT_DOWNLOAD, False, bool,
+        self.debug_mint_download = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_MINT_DOWNLOAD, False,
                                                       "If False, MintChecker will attempt to use pickle files with "
                                                       "data previously collected.\nThis is for Debugging")
-        self.debug_save_html = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_SAVE_HTML, "html.txt", str,
+        self.debug_save_html = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_SAVE_HTML, "html.txt",
                                                   "If True, the html that is attached to the emails will be saved\n"
                                                   "This is for debugging")
-        self.debug_send_email = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_SEND_EMAIL, True, bool,
+        self.debug_send_email = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_SEND_EMAIL, True,
                                                    "If False, it will prevent MintChecker from sending any emails\n"
                                                    "This is for debugging")
-        self.debug_attach_log = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_ATTACH_LOG, True, bool,
+        self.debug_attach_log = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_ATTACH_LOG, True,
                                                    "If True, will attach the log file to the email to the admin\n"
                                                    "This is for debugging")
-        debug_mint_pickle_file = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE, "pickle.pkl", str,
+        debug_mint_pickle_file = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_MINT_PICKLE_FILE, "pickle.pkl",
                                                     "The name of the pickle file to store transactions in.\n"
                                                     "This is useful to save time for development and debugging\n"
                                                     "This is for debugging")
-        previous_accounts_pickle_file = cfg_mgr.read_entry(DEBUG_TITLE, ACCOUNTS_PICKLE_FILE, "accounts.pickle", str,
+        previous_accounts_pickle_file = cfg_mgr.read_entry(DEBUG_TITLE, ACCOUNTS_PICKLE_FILE, "accounts.pickle",
                                                            "The name of the pickle file to store accounts in.\n"
                                                            "This is useful to save time for development and "
                                                            "debugging\n"
                                                            "This is for debugging")
         self.general_pickle_folder = cfg_mgr.read_entry(GENERAL_TITLE, GENERAL_PICKLE_FOLDER, "C:\\temp",
-                                                        str, "The location (folder) of pickle files")
+                                                        "The location (folder) of pickle files")
         if not create:
             pickle_path = os.path.join(self.current_dir, self.general_pickle_folder)
             if not os.path.exists(pickle_path):
@@ -327,25 +326,25 @@ class MintConfigFile:
             self.debug_mint_pickle_file = os.path.join(pickle_path, debug_mint_pickle_file)
             self.previous_accounts_pickle_file = os.path.join(pickle_path, previous_accounts_pickle_file)
 
-        self.debug_debugging = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_DEBUGGING, False, bool,
+        self.debug_debugging = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_DEBUGGING, False,
                                                   "If True, MintCheck will dump data to the screen")
-        self.debug_sheets_download = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_SHEETS_DOWNLOAD, True, bool,
+        self.debug_sheets_download = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_SHEETS_DOWNLOAD, True,
                                                         "If True, MintChecker dumps Google sheet data to the screen")
-        self.debug_copy_admin = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_COPY_ADMIN, False, bool,
+        self.debug_copy_admin = cfg_mgr.read_entry(DEBUG_TITLE, DEBUG_COPY_ADMIN, False,
                                                    "If True, MintChecker will copy the admin on all debugging")
         self.account_type_credit_fg = cfg_mgr.read_entry(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_CREDIT_FG,
-                                                         "green", str,
+                                                         "green",
                                                          "This indicates the color for credit accounts")
-        self.account_type_bank_fg = cfg_mgr.read_entry(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_FG, "blue", str,
+        self.account_type_bank_fg = cfg_mgr.read_entry(ACCOUNT_TYPES_TITLE, ACCOUNT_TYPES_BANK_FG, "blue",
                                                        "This indicates the color for bank accounts")
-        self.past_due_days_before = cfg_mgr.read_entry(PAST_DUE_TITLE, PAST_DUE_DAYS_BEFORE, 5, int,
+        self.past_due_days_before = cfg_mgr.read_entry(PAST_DUE_TITLE, PAST_DUE_DAYS_BEFORE, 5,
                                                        "This indicates the color to present a credit account if it is "
                                                        "due within the number of days")
-        self.past_due_fg_color = cfg_mgr.read_entry(PAST_DUE_TITLE, PAST_DUE_FOREGROUND_COLOR, "red", str,
+        self.past_due_fg_color = cfg_mgr.read_entry(PAST_DUE_TITLE, PAST_DUE_FOREGROUND_COLOR, "red",
                                                     "This indicates the color to present a credit account if it is "
                                                     "past due")
         self.email_connection = EmailConnection(cfg_mgr, filename=file_name, create=create)
-        json_file = cfg_mgr.read_entry(SHEETS_TITLE, SHEETS_JSON_FILE, "sheets.json", str,
+        json_file = cfg_mgr.read_entry(SHEETS_TITLE, SHEETS_JSON_FILE, "sheets.json",
                                        "This is the name of the json file for Google sheets\n"
                                        "It is for Debugging")
         if not create:

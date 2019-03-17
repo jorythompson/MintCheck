@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 import inspect
 import logging
 import re
@@ -12,13 +12,13 @@ def clean_dictionary(name, obj):
         for transaction in obj:
             for key in transaction:
                 clean_key = to_string(key)
-                # transaction[clean_key] = transaction.pop(key)
                 transaction[clean_key] = to_string(transaction[clean_key])
                 transaction[clean_key] = parse_all(clean_key, transaction[clean_key])
         logger.debug(to_string(obj))
     except Exception as e:
         raise e
     return obj
+
 
 DATE_STRING_FIELDS = [
     'dueDate'
@@ -46,10 +46,11 @@ DOLLAR_FIELDS = [
 
 def date_convert(dateraw):
     # Converts dates from json data
-    cy = datetime.isocalendar(date.today())[0]
+    cy = datetime.isocalendar(datetime.today())[0]
+    # noinspection PyBroadException
     try:
         newdate = datetime.strptime(dateraw + str(cy), '%b %d%Y')
-    except:
+    except Exception:
         newdate = datetime.strptime(dateraw, '%m/%d/%y')
     return newdate
 
@@ -57,24 +58,28 @@ def date_convert(dateraw):
 def parse_all(key, val):
     this_type = to_string(type(val))
     if key in DATE_STRING_FIELDS:
+        # noinspection PyBroadException
         try:
             val = datetime.strptime(val, "%m/%d/%Y")
-        except:
+        except Exception:
             val = None
     elif key in LONG_DATE_FIELDS:
+        # noinspection PyBroadException
         try:
             val = datetime.fromtimestamp(val / 1e3)
-        except:
+        except Exception:
             val = None
     elif to_string(key) in MONTH_ONLY_DATE_FIELDS:
+        # noinspection PyBroadException
         try:
             val = date_convert(val)
-        except:
+        except Exception:
             val = None
     elif to_string(key) in DOLLAR_FIELDS:
+        # noinspection PyBroadException
         try:
             val = float(val.replace("$", "").replace(",", ""))
-        except:
+        except Exception:
             val = None
     elif val == "False":
         val = False
@@ -127,10 +132,10 @@ class MintTransactions:
                     total -= amount
                 else:
                     total += amount
-        return MintTransactions.sort_by_key(transactions, 'date'), total
+        return MintTransactions.sort_by_key(transactions), total
 
     @staticmethod
-    def sort_by_key(transactions, key):
+    def sort_by_key(transactions):
         trans = []
         for k in transactions:
             i = 0
@@ -167,6 +172,6 @@ class MintAccounts:
 
 def to_string(obj):
     if isinstance(obj, str):
-        return re.sub(r'[^\x00-\x7f]',r'', obj)
+        return re.sub(r'[^\x00-\x7f]', r'', obj)
     else:
         return str(obj)

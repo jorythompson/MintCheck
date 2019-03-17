@@ -15,7 +15,7 @@ import logging
 import logging.config
 from mintSheets import MintSheet
 import os
-import thompco_utils
+from thompcoutils.log_utils import get_logger, get_log_file_name
 
 # from datetime import datetime, date, time
 ########################################################################################################################
@@ -26,7 +26,7 @@ import thompco_utils
 
 class MintCheck:
     def __init__(self):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         self.args = None
         self.accounts = None
         self.mint_transactions = None
@@ -42,7 +42,7 @@ class MintCheck:
                                    headless=self.config.headless, mfa_method="sms")
 
     def _get_data(self, start_date):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
         if self.config.debug_mint_download:
             logger.debug("Initially connecting to Mint...")
@@ -144,7 +144,7 @@ class MintCheck:
                 report.send_data()
 
     def pickle_mint(self):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         logger.debug("pickling mint objects...")
         if self.config.debug_mint_pickle_file is not None:
             with open(self.config.debug_mint_pickle_file, 'wb') as handle:
@@ -152,7 +152,7 @@ class MintCheck:
                 pickle.dump(self.mint_transactions, handle)
 
     def unpickle_mint(self):
-        logger = thompco_utils.get_logger()
+        logger = get_logger()
         logger.debug("unpicking mint objects...")
         if self.config.debug_mint_pickle_file is not None:
             with open(self.config.debug_mint_pickle_file, 'rb') as handle:
@@ -161,7 +161,7 @@ class MintCheck:
 
 
 def main():
-    logger = thompco_utils.get_logger()
+    logger = get_logger()
     local_path = os.path.dirname(os.path.abspath(__file__))
     log_configuration_file = os.path.join(local_path, 'logging.conf')
     logging.config.fileConfig(log_configuration_file)
@@ -194,7 +194,7 @@ def main():
                         logger.critical("mint_check is None")
                     elif mint_check.mint is None:
                         logger.critical("mint_check.mint is None")
-                    elif mint_check.mint.mint_driver is None:
+                    elif mint_check.mint.driver is None:
                         logger.critical("mint_check.mint.driver is None")
                     else:
                         mint_check.mint.driver.quit()
@@ -216,11 +216,12 @@ def main():
                     email_sender = EmailSender(mint_check.config.email_connection)
                     subject = "Exception {} caught in Mint Checker at {}".format(attempt+1, mint_check.now)
                     for email_to in mint_check.config.general_exceptions_to:
+                        # noinspection PyBroadException
                         try:
                             email_sender.send(to_email=email_to,
                                               subject=subject,
-                                              message=message, attach_file=thompco_utils.get_log_file_name())
-                        except Exception as e:
+                                              message=message, attach_file=get_log_file_name())
+                        except Exception:
                             email_sender.send(to_email=email_to, subject=subject,
                                               message=message)
     logger.info("Done!")
