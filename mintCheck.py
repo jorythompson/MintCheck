@@ -91,9 +91,9 @@ class MintCheck:
     def _get_args():
         parser = argparse.ArgumentParser(description='Read Information from Mint')
         parser.add_argument('--live', action="store_true", default=False,
-                            help='Indicates Mint Checker is running live and should sleep a random period of time before '
-                                 'hitting Mint.com.  It also refreshes Mint and sleeps for 15 minutes while Mint '
-                                 'updates itself.')
+                            help='Indicates Mint Checker is running live and should sleep a random period of time '
+                                 'before hitting Mint.com.  It also refreshes Mint and sleeps for 15 minutes while '
+                                 'Mint updates itself.')
         parser.add_argument('--config', required=True,
                             help='Configuration file containing your username, password,etc')
         parser.add_argument('--validate_ini', action="store_true", default=False,
@@ -172,7 +172,7 @@ def main():
     logger.info("Getting logging configuration from:" + log_configuration_file)
     success = False
     mint_check = MintCheck()
-    for attempt in range(mint_check.config.max_retries-1):
+    for attempt in range(mint_check.config.max_retries):
         # Occasionally Mint fails with strange exceptions.  This loop will try several times before giving up.
         # Note that each failure will email the exception to the appropriate recipients
         if not success:

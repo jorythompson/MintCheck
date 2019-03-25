@@ -53,6 +53,7 @@ class PrettyPrint:
     @staticmethod
     def create_debit_accounts(debit_accounts, missing_debit_accounts):
         logger = get_logger()
+        balances = False
         debit_accounts_html = tags.html()
         if len(debit_accounts) > 0 or len(missing_debit_accounts) > 0:
             sorted_debit_accounts = PrettyPrint.multi_key_sort(debit_accounts,
@@ -105,7 +106,8 @@ class PrettyPrint:
                                 locale.currency(debit_account["mint credit account"]["currentBalance"], grouping=True),
                                 align="right", style=border)
                             tags.td(total_field, align="right", style=border)
-        else:
+                            balances = True
+        if not balances:
             with debit_accounts_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h5("No Required Balances For This Period", align="center")
         return debit_accounts_html
@@ -116,6 +118,7 @@ class PrettyPrint:
         activity = False
         fg_color = self.config.account_type_bank_fg
         with activity_html.add(tags.body()).add(tags.div(id='content')):
+            tags.h1("Activity By Account", align="center")
             for fi in self.fis:
                 fis_title_saved = False
                 for account in self.accounts:
@@ -252,6 +255,7 @@ class PrettyPrint:
                             tags.td(value, align="right")
                             tags.td(warning[1].comparator)
                             amount = locale.currency(warning[1].amount, grouping=True)
+                            # noinspection PyBroadException
                             try:
                                 due_date = dateutil.parser.parse(str(warning[0]["dueDate"]))
                             except Exception:
@@ -373,6 +377,7 @@ class PrettyPrint:
                                         for paid_from in self.config.paid_from:
                                             if paid_from["credit account"] == account["name"]:
                                                 debit_account = paid_from["debit account"]
+                                                # noinspection PyBroadException
                                                 try:
                                                     debit_amount = locale.currency(paid_from["balance"], grouping=True)
                                                 except Exception:
@@ -559,29 +564,48 @@ class PrettyPrint:
                     tags.h4("This " + report_frequency + " report was prepared for " + user.name
                             + " on " + datetime.now().strftime("%m/%d/%y at %I:%M:%S %p")
                             + " starting on " + start_date.strftime("%m/%d/%y at %I:%M:%S %p"))
-                    raw_html = 'Colors are as follows:<br>' \
-                               + 'Account Types:<font color="' + self.config.account_type_credit_fg + '">' \
-                               + 'Credit cards</font>, ' + '<font color="' + self.config.account_type_bank_fg + '">' \
-                               + 'Bank Accounts</font>, ' + '<font color="' + self.config.sheets_paid_color + '">' \
-                               + 'Verified Deposits</font>, ' + '<font color="' +\
-                               self.config.sheets_unpaid_color + '">' \
-                               + 'Missing Deposits</font>'
+                    raw_html = 'Color Key:<br>' \
+                               'Account Types: <font color="{}">' \
+                               '"Credit cards"</font>, <font color="{}">' \
+                               '"Bank Accounts"</font>, <font color="{}">' \
+                               '"Verified Deposits"</font>, <font color="{}">' \
+                               '"Missing Deposits"</font>'.format(self.config.account_type_credit_fg,
+                                                                  self.config.account_type_bank_fg,
+                                                                  self.config.sheets_paid_color,
+                                                                  self.config.sheets_unpaid_color)
                     raw_html += "<br>Keywords: "
+                    last_color = list(self.config.color_tags)[-1]
+                    last_keyword = list(self.config.color_tags[last_color])[-1]
+                    comma = ","
                     for color in self.config.color_tags:
                         for keyword in self.config.color_tags[color]:
-                            raw_html += '<font color = "' + color + '" >' + keyword + ', </font>'
+                            if keyword == last_keyword and color == last_color:
+                                comma = ""
+                            raw_html += '<font color="{}">"{}"</font>{} '.format(color,  keyword, comma)
+                    if self.config.general_month_start == 1:
+                        indicator = "st"
+                    elif self.config.general_month_start == 2:
+                        indicator = "nd"
+                    elif self.config.general_month_start == 3:
+                        indicator = "rd"
+                    else:
+                        indicator = "th"
+                    raw_html += "<br>Month starts on the {}{}, week starts on {}".format(
+                        self.config.general_month_start,
+                        indicator,
+                        self.config.general_week_start.capitalize())
                     tags.div(raw(raw_html))
                 message = str(report_period_html) + message
                 if self.config.debug_save_html is not None:
                     file_name = os.path.join(self.config.general_html_folder,
                                              user.name + "_" + self.config.debug_save_html)
-                    logger.debug("saving html file to " + file_name)
+                    logger.debug("saving html file to {}".format(file_name))
                     with open(file_name, "w") as out_html:
                         out_html.write(message)
                 if self.config.debug_send_email:
                     email_sender = EmailSender(self.config.email_connection)
                     for email in user.email:
-                        logger.debug("Sending email to " + email)
+                        logger.debug("Sending email to {}".format(email))
                         if email.lower() == self.config.general_admin_email.lower() and self.config.debug_attach_log:
                             log_file = get_log_file_name()
                         else:
