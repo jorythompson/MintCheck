@@ -28,6 +28,7 @@ class PrettyPrint:
         self.doc = None
         self.fis = None
 
+
     @staticmethod
     def previous_and_next(some_iterable):
         previous_iterable, items, next_iterable = tee(some_iterable, 3)
@@ -35,20 +36,6 @@ class PrettyPrint:
         next_iterable = chain(islice(next_iterable, 1, None), [None])
         return zip(previous_iterable, items, next_iterable)
 
-    @staticmethod
-    def multi_key_sort(items, columns):
-        comparators = [((itemgetter(col[1:].strip()), -1) if col.startswith('-') else
-                        (itemgetter(col.strip()), 1)) for col in columns]
-
-        def comparator(left, right):
-            for fn, multiplier in comparators:
-                result = operator.le(fn(left), fn(right))
-                if result:
-                    return multiplier * result
-            else:
-                return 0
-
-        return sorted(items, key=functools.cmp_to_key(comparator))
 
     @staticmethod
     def create_debit_accounts(debit_accounts, missing_debit_accounts):
@@ -56,8 +43,7 @@ class PrettyPrint:
         balances = False
         debit_accounts_html = tags.html()
         if len(debit_accounts) > 0 or len(missing_debit_accounts) > 0:
-            sorted_debit_accounts = PrettyPrint.multi_key_sort(debit_accounts,
-                                                               ["mint next payment date", "mint paid from account"])
+            sorted_debit_accounts = sorted(debit_accounts, key=itemgetter('mint next payment date'))
             logger.info("assembling debit account list")
             with debit_accounts_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Required Balances in Debit Accounts Due Soon", align="center")
