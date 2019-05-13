@@ -201,14 +201,12 @@ class MintUser:
             name,
             USER_RENAME_ACCOUNT,
             {"old name": "new name", "mint name": "my name"},
-            "Rename accounts that Mint may have trouble with",
-            use_default_if_missing=False)
+            "Rename accounts that Mint may have trouble with")
         self.rename_institutions = cfg_mgr.read_entry(
             name,
             USER_RENAME_INSTITUTION,
             {"old name":"new name", "mint name":"my name"},
-            "Rename accounts that Mint may have trouble with",
-            use_default_if_missing=False)
+            "Rename accounts that Mint may have trouble with")
         self.display_credit_report = cfg_mgr.read_entry(
             name, CREDIT_REPORT, False,
             "True want to report the mint user's credit report and net worth")

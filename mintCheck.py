@@ -53,11 +53,11 @@ class MintCheck:
             self.status = "initially connecting"
             self.mint = self.connect()
             # No longer have to wait for mint to refresh - its built into the api
-            if self.mint is not None:
-                self.mint.close()
-            logger.debug("reconnecting to Mint to get data...")
-            self.status = "reconnecting to collect data"
-            self.mint = self.connect()
+            # if self.mint is not None:
+            #    self.mint.close()
+            #logger.debug("reconnecting to Mint to get data...")
+            # self.status = "reconnecting to collect data"
+            # self.mint = self.connect()
             self.net_worth = self.mint.get_net_worth()
             self.credit_score = self.mint.get_credit_score()
             logger.info("getting accounts...")
