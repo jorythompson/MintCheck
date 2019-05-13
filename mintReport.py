@@ -11,23 +11,21 @@ from datetime import datetime, date, time
 import os
 import dateutil
 from thompcoutils.log_utils import get_logger, get_log_file_name
-import functools
-import operator
-
 
 BORDER_STYLE = "border-bottom:1px solid black"
 
 
 class PrettyPrint:
-    def __init__(self, accounts, transactions, sheets, config):
-        self.config = config
-        self.accounts = accounts
-        self.transactions = transactions
+    def __init__(self, mint, sheets):
+        self.config = mint.config
+        self.net_worth = mint.net_worth
+        self.credit_score = mint.credit_score
+        self.accounts = mint.accounts
+        self.transactions = mint.mint_transactions
         self.sheets = sheets
         self.now = datetime.combine(date.today(), time())
         self.doc = None
         self.fis = None
-
 
     @staticmethod
     def previous_and_next(some_iterable):
@@ -35,7 +33,6 @@ class PrettyPrint:
         previous_iterable = chain([None], previous_iterable)
         next_iterable = chain(islice(next_iterable, 1, None), [None])
         return zip(previous_iterable, items, next_iterable)
-
 
     @staticmethod
     def create_debit_accounts(debit_accounts, missing_debit_accounts):
@@ -424,6 +421,20 @@ class PrettyPrint:
                     tags.h3("Not downloading data from Google sheets", align="center", style="color:red")
         return debug_html
 
+    def create_net_worth_credit_score(self):
+        logger = get_logger()
+        logger.info("assembling net worth and credit report")
+        net_worth_html = tags.html()
+        with net_worth_html.add(tags.body()).add(tags.div(id='content')):
+            with tags.table(rules="cols", frame="box", align="center"):
+                with tags.thead(style=BORDER_STYLE):
+                    tags.th("Net Worth", style=BORDER_STYLE)
+                    tags.th("Credit Report", style=BORDER_STYLE)
+                    tags.tr(style=BORDER_STYLE)
+                    tags.td("${:,.2f}".format(self.net_worth))
+                    tags.td("{}".format(self.credit_score), align="center")
+        return net_worth_html
+
     def create_deposit_warnings(self, user):
         logger = get_logger()
         sheets = self.sheets.get_missing_deposits(self.transactions, user)
@@ -474,8 +485,6 @@ class PrettyPrint:
 
     @staticmethod
     def identify_missing_accounts():
-        # new_accounts = []
-        # missing_accounts = []
         missing_accounts_html = tags.html()
         return missing_accounts_html
 
@@ -486,6 +495,8 @@ class PrettyPrint:
         missing_accounts_html = self.identify_missing_accounts()
         for user in self.config.users:
             handled_accounts = []
+            if user.display_credit_report:
+                net_worth_credit_score_html = self.create_net_worth_credit_score()
             deposit_warnings_html = self.create_deposit_warnings(user)
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
                 continue
@@ -527,6 +538,8 @@ class PrettyPrint:
                 debug_html = self.create_debug_section()
                 if debug_html is not None:
                     message += str(debug_html)
+                if net_worth_credit_score_html is not None:
+                    message += str(net_worth_credit_score_html)
                 if missing_accounts_html is not None:
                     message += str(missing_accounts_html)
                 if debit_accounts_html is not None:

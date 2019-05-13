@@ -35,6 +35,8 @@ class MintCheck:
         self.now = datetime.datetime.now()
         self.prompt_for_text = None
         self.mint = None
+        self.credit_score = None
+        self.net_worth = None
         self.status = "constructing"
         logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
 
@@ -50,21 +52,14 @@ class MintCheck:
             logger.debug("Initially connecting to Mint...")
             self.status = "initially connecting"
             self.mint = self.connect()
-            message_sleep_time = 60
-            message = "Sleeping for {:.2f} minutes while Mint updates"
-            logger.debug(message.format(self.config.post_connect_sleep/60))
-            stop_time = datetime.datetime.now() + datetime.timedelta(seconds=self.config.post_connect_sleep)
-            next_message_time = datetime.datetime.now() + datetime.timedelta(seconds=message_sleep_time)
-            while datetime.datetime.now() < stop_time:
-                time.sleep(1)
-                if datetime.datetime.now() > next_message_time:
-                    logger.debug(message.format((stop_time - datetime.datetime.now()).seconds/60.0))
-                    next_message_time = datetime.datetime.now() + datetime.timedelta(seconds=message_sleep_time)
+            # No longer have to wait for mint to refresh - its built into the api
             if self.mint is not None:
                 self.mint.close()
             logger.debug("reconnecting to Mint to get data...")
             self.status = "reconnecting to collect data"
             self.mint = self.connect()
+            self.net_worth = self.mint.get_net_worth()
+            self.credit_score = self.mint.get_credit_score()
             logger.info("getting accounts...")
             self.accounts = self.mint.get_accounts(get_detail=False)
             logger.info("Getting transactions...")
@@ -143,8 +138,7 @@ class MintCheck:
             if start_date is not None:
                 self._get_data(start_date - datetime.timedelta(days=max_day_error))
                 mint_sheet = MintSheet(self.config, start_date)
-                report = mintReport.PrettyPrint(self.accounts, self.mint_transactions, mint_sheet,
-                                                self.config)
+                report = mintReport.PrettyPrint(self, mint_sheet)
                 report.send_data()
 
     def pickle_mint(self):
@@ -154,6 +148,8 @@ class MintCheck:
             with open(self.config.debug_mint_pickle_file, 'wb') as handle:
                 pickle.dump(self.accounts, handle)
                 pickle.dump(self.mint_transactions, handle)
+                pickle.dump(self.credit_score, handle)
+                pickle.dump(self.net_worth, handle)
 
     def unpickle_mint(self):
         logger = get_logger()
@@ -162,6 +158,8 @@ class MintCheck:
             with open(self.config.debug_mint_pickle_file, 'rb') as handle:
                 self.accounts = pickle.load(handle)
                 self.mint_transactions = pickle.load(handle)
+                self.credit_score = pickle.load(handle)
+                self.net_worth = pickle.load(handle)
 
 
 def main():
