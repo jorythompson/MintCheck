@@ -42,8 +42,14 @@ class MintCheck:
 
     def connect(self):
         self.status = "creating Mint API connection"
+        if os.path.exists(self.config.session_path):
+                if not os.path.isdir(self.config.session_path):
+                    raise Exception("{} must either not exist or be a folder".format(self.config.session_path))
+        else:
+            os.makedirs(self.config.session_path)
         return mintapi.Mint.create(email=self.config.mint_username, password=self.config.mint_password,
-                                   headless=self.config.headless, mfa_method="sms")
+                                   headless=self.config.headless, mfa_method="sms",
+                                   session_path=self.config.session_path)
 
     def _get_data(self, start_date):
         logger = get_logger()
@@ -58,8 +64,14 @@ class MintCheck:
             #logger.debug("reconnecting to Mint to get data...")
             # self.status = "reconnecting to collect data"
             # self.mint = self.connect()
-            self.net_worth = self.mint.get_net_worth()
-            self.credit_score = self.mint.get_credit_score()
+            try:
+                self.net_worth = self.mint.get_net_worth()
+            except Exception as e:
+                pass
+            try:
+                self.credit_score = self.mint.get_credit_score()
+            except Exception as e:
+                pass
             logger.info("getting accounts...")
             self.accounts = self.mint.get_accounts(get_detail=False)
             logger.info("Getting transactions...")

@@ -13,6 +13,7 @@ laptop.ini
 *.html
 *.pyc
 log.*
+chromedriver_session
 *.log
 pickle.*
 MintCheck.json

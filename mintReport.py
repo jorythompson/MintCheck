@@ -431,8 +431,14 @@ class PrettyPrint:
                     tags.th("Net Worth", style=BORDER_STYLE)
                     tags.th("Credit Report", style=BORDER_STYLE)
                     tags.tr(style=BORDER_STYLE)
-                    tags.td("${:,.2f}".format(self.net_worth))
-                    tags.td("{}".format(self.credit_score), align="center")
+                    if self.net_worth is None:
+                        tags.td("not available")
+                    else:
+                        tags.td("${:,.2f}".format(self.net_worth))
+                    if self.credit_score is None:
+                        tags.td("not available")
+                    else:
+                        tags.td("{}".format(self.credit_score), align="center")
         return net_worth_html
 
     def create_deposit_warnings(self, user):

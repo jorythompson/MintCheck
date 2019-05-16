@@ -17,6 +17,7 @@ MINT_TITLE = "mint connection"
 MINT_USER_USERNAME = "username"
 MINT_USER_PASSWORD = "password"
 HEADLESS = "headless"
+SESSION_PATH = "session_path"
 MINT_REMOVE_DUPLICATES = "remove_duplicates"
 MINT_IGNORE_ACCOUNTS = "ignore_accounts_containing"
 
@@ -255,6 +256,11 @@ class MintConfigFile:
             MINT_TITLE, HEADLESS,
             True,
             "True if you don't want chrome browser to display")
+        self.session_path = cfg_mgr.read_entry(
+            MINT_TITLE, SESSION_PATH,
+            "session",
+            "Location of the chromedriver session data")
+        # self.session_path = os.path.join(".", self.session_path)
         self.mint_ignore_accounts = cfg_mgr.read_entry(
             MINT_TITLE, MINT_IGNORE_ACCOUNTS,
             "duplicate",
