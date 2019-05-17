@@ -1,3 +1,4 @@
+from thompcoutils.log_utils import get_logger, get_log_file_name
 import sys
 import traceback
 import mintapi
@@ -15,7 +16,6 @@ import logging
 import logging.config
 from mintSheets import MintSheet
 import os
-from thompcoutils.log_utils import get_logger, get_log_file_name
 
 # from datetime import datetime, date, time
 ########################################################################################################################
