@@ -169,6 +169,8 @@ class PrettyPrint:
                                             tags.th("")
                                             tags.th("Credit")
                                             tags.th("Debit")
+                                    total_credit = 0
+                                    total_debit = 0
                                     for transaction in transactions:
                                         fg_color = "black"
                                         for color in self.config.color_tags:
@@ -187,15 +189,28 @@ class PrettyPrint:
                                                 tags.td(transaction["date"].strftime('%b %d'))
                                                 tags.td(transaction["omerchant"])
                                                 tags.td(transaction["category"])
-                                                amount = transaction["amount"]
+                                                amount = locale.currency(transaction["amount"], grouping=True)
                                                 if transaction["isDebit"]:
+                                                    total_debit += transaction["amount"]
+                                                    if transaction["amount"] < self.config.min_spend_threshold:
+                                                        min_max_color = "color:" + self.config.min_spend_color +\
+                                                                        '; font-weight:bold'
+                                                    elif transaction["amount"] > self.config.max_spend_threshold:
+                                                        min_max_color = "color:" + self.config.max_spend_color  + \
+                                                                        '; font-weight:bold'
+                                                    else:
+                                                        min_max_color = None
                                                     tags.td("")
-                                                    tags.td(locale.currency(-amount, grouping=True),
-                                                            align="right")
+                                                    tags.td("-" + amount, align="right", style=min_max_color)
                                                 else:
-                                                    tags.td(locale.currency(amount, grouping=True),
-                                                            align="right")
+                                                    total_credit += transaction["amount"]
+                                                    tags.td(amount, align="right")
                                                     tags.td("")
+                                    tags.td("")
+                                    tags.td("")
+                                    tags.td("")
+                                    tags.td(locale.currency(total_credit, grouping=True), align="right", style="border:thin solid black")
+                                    tags.td(locale.currency(-total_debit, grouping=True), align="right", style="border:thin solid black")
         if not activity:
             with activity_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h5("No Transactions For This Period", align="center")

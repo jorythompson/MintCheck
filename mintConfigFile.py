@@ -34,6 +34,10 @@ GENERAL_PICKLE_FOLDER = "pickle_folder"
 GENERAL_HTML_FOLDER = "html_folder"
 GENERAL_POST_CONNECT_SLEEP = "post_connect_sleep"
 GENERAL_MAX_RETRIES = "max_retries"
+GENERAL_MIN_SPEND_THRESHOLD = "min_spend_threshold"
+GENERAL_MIN_SPEND_COLOR = "min_spend_color"
+GENERAL_MAX_SPEND_THRESHOLD = "max_spend_threshold"
+GENERAL_MAX_SPEND_COLOR = "max_spend_color"
 
 # USER block
 USER_EMAIL = "email"
@@ -361,6 +365,26 @@ class MintConfigFile:
             GENERAL_MAX_RETRIES,
             10,
             "Maximum number of retries to connect to Mint before giving up")
+        self.min_spend_threshold = cfg_mgr.read_entry(
+            GENERAL_TITLE,
+            GENERAL_MIN_SPEND_THRESHOLD,
+            100,
+            "Transactions less than this amount will be flagged")
+        self.min_spend_color = cfg_mgr.read_entry(
+            GENERAL_TITLE,
+            GENERAL_MIN_SPEND_COLOR,
+            "red",
+            "Transactions less than the min threshold will be highlighted in this color")
+        self.max_spend_threshold = cfg_mgr.read_entry(
+            GENERAL_TITLE,
+            GENERAL_MAX_SPEND_THRESHOLD,
+            100,
+            "Transactions more than this amount will be flagged")
+        self.max_spend_color = cfg_mgr.read_entry(
+            GENERAL_TITLE,
+            GENERAL_MAX_SPEND_COLOR,
+            "red",
+            "Transactions more than the min threshold will be highlighted in this color")
         self.debug_mint_download = cfg_mgr.read_entry(
             DEBUG_TITLE,
             DEBUG_MINT_DOWNLOAD,
