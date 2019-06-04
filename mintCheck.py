@@ -1,4 +1,5 @@
 from thompcoutils.log_utils import get_logger, get_log_file_name
+import thompcoutils.os_utils as os_utils
 import sys
 import traceback
 import mintapi
@@ -16,6 +17,7 @@ import logging
 import logging.config
 from mintSheets import MintSheet
 import os
+
 
 # from datetime import datetime, date, time
 ########################################################################################################################
@@ -174,6 +176,14 @@ class MintCheck:
                 self.net_worth = pickle.load(handle)
 
 
+def kill_chrome():
+    chrome_processes = os_utils.find_processes("Google Chrome")
+    for process in chrome_processes:
+        child_processes = os_utils.list_child_processes(process.pid)
+        if len(child_processes) < 10:
+            os_utils.kill_process(process)
+
+
 def main():
     logger = get_logger()
     local_path = os.path.dirname(os.path.abspath(__file__))
@@ -188,6 +198,8 @@ def main():
         if not success:
             if mint_check is None:
                 mint_check = MintCheck()
+            else:
+                kill_chrome()
             try:
                 if mint_check.args.live:
                     sleep_time = randint(0, 60 * mint_check.config.general_sleep)
@@ -239,6 +251,7 @@ def main():
                         except Exception:
                             email_sender.send(to_email=email_to, subject=subject,
                                               message=message)
+                    pass
     logger.info("Done!")
 
 
