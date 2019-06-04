@@ -177,11 +177,24 @@ class MintCheck:
 
 
 def kill_chrome():
-    chrome_processes = os_utils.find_processes("Google Chrome")
-    for process in chrome_processes:
-        child_processes = os_utils.list_child_processes(process.pid)
-        if len(child_processes) < 10:
-            os_utils.kill_process(process)
+    if os_utils.os_type() == os_utils.OSType.WINDOWS:
+        chrome_processes = os_utils.find_processes("chrome.exe")
+        parents = []
+        for parent in chrome_processes:
+            for child in chrome_processes:
+                if child.ppid() == parent.pid:
+                    parents.append(parent)
+                    break
+        for process in parents:
+            child_processes = os_utils.list_child_processes(process.pid)
+            if len(child_processes) < 10:
+                os_utils.kill_process(process)
+    else:
+        chrome_processes = os_utils.find_processes("Google Chrome")
+        for process in chrome_processes:
+            child_processes = os_utils.list_child_processes(process.pid)
+            if len(child_processes) < 10:
+                os_utils.kill_process(process)
 
 
 def main():
