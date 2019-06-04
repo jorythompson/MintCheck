@@ -185,16 +185,14 @@ def kill_chrome():
                 if child.ppid() == parent.pid:
                     parents.append(parent)
                     break
-        for process in parents:
-            child_processes = os_utils.list_child_processes(process.pid)
-            if len(child_processes) < 10:
-                os_utils.kill_process(process)
+        chrome_processes = parents
     else:
         chrome_processes = os_utils.find_processes("Google Chrome")
-        for process in chrome_processes:
-            child_processes = os_utils.list_child_processes(process.pid)
-            if len(child_processes) < 10:
-                os_utils.kill_process(process)
+
+    for process in chrome_processes:
+        child_processes = os_utils.list_child_processes(process.pid)
+        if len(child_processes) < 10:
+            os_utils.kill_process(process)
 
 
 def main():
