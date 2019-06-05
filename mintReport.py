@@ -22,6 +22,7 @@ class PrettyPrint:
         self.config = mint.config
         self.net_worth = mint.net_worth
         self.credit_score = mint.credit_score
+        self.attention = mint.attention
         self.accounts = mint.accounts
         self.transactions = mint.mint_transactions
         self.sheets = sheets
@@ -464,6 +465,19 @@ class PrettyPrint:
             max_value = 579
         return {"title": title, "min": min_value, "max": max_value}
 
+    def create_attention(self):
+        logger = get_logger()
+        logger.info("assembling net worth and credit report")
+        attention_html = tags.html()
+        if self.attention is None:
+            return None
+        else:
+            with attention_html.add(tags.body()).add(tags.div(id='content')):
+                tags.p(self.attention + ". Please log into ",
+                       tags.a("mint.com", href="http://mint.com", target="_blank"),
+                       tags.a(" to fix"), align="center", style="color:red")
+        return attention_html
+
     def create_net_worth_credit_score(self):
         file_name = os.path.join(self.config.general_html_folder,"credit_net_worth.ini")
         history = config_utils.HiLow(file_name)
@@ -591,6 +605,7 @@ class PrettyPrint:
                 net_worth_credit_score_html = self.create_net_worth_credit_score()
             else:
                 net_worth_credit_score_html = None
+            attention_html = self.create_attention()
             deposit_warnings_html = self.create_deposit_warnings(user)
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
                 continue
@@ -634,6 +649,8 @@ class PrettyPrint:
                     message += str(debug_html)
                 if net_worth_credit_score_html is not None:
                     message += str(net_worth_credit_score_html)
+                if attention_html is not None:
+                    message += str(attention_html)
                 if missing_accounts_html is not None:
                     message += str(missing_accounts_html)
                 if debit_accounts_html is not None:
