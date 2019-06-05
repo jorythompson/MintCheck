@@ -11,8 +11,10 @@ from datetime import datetime, date, time
 import os
 import dateutil
 from thompcoutils.log_utils import get_logger, get_log_file_name
+import thompcoutils.config_utils as config_utils
 
 BORDER_STYLE = "border-bottom:1px solid black"
+CURRENCY_STYLE = "${:,.2f}"
 
 
 class PrettyPrint:
@@ -209,8 +211,10 @@ class PrettyPrint:
                                     tags.td("")
                                     tags.td("")
                                     tags.td("")
-                                    tags.td(locale.currency(total_credit, grouping=True), align="right", style="border:thin solid black")
-                                    tags.td(locale.currency(-total_debit, grouping=True), align="right", style="border:thin solid black")
+                                    tags.td(locale.currency(total_credit, grouping=True), align="right",
+                                            style="border:thin solid black")
+                                    tags.td(locale.currency(-total_debit, grouping=True), align="right",
+                                            style="border:thin solid black")
         if not activity:
             with activity_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h5("No Transactions For This Period", align="center")
@@ -436,24 +440,66 @@ class PrettyPrint:
                     tags.h3("Not downloading data from Google sheets", align="center", style="color:red")
         return debug_html
 
+    @staticmethod
+    def get_credit_score(score):
+        if score >= 800:
+            title = "Exceptional"
+            min_value = 800
+            max_value = 850
+        elif score >= 740:
+            title = "Very Good"
+            min_value = 740
+            max_value = 799
+        elif score >= 670:
+            title = "Good"
+            min_value = 670
+            max_value = 739
+        elif score >= 580:
+            title = "Fair"
+            min_value = 580
+            max_value = 669
+        else:
+            title = "Very Poor"
+            min_value = 300
+            max_value = 579
+        return {"title": title, "min": min_value, "max": max_value}
+
     def create_net_worth_credit_score(self):
+        file_name = os.path.join(self.config.general_html_folder,"credit_net_worth.ini")
+        history = config_utils.HiLow(file_name)
+        credit_history = history.write_value("credit_score", self.credit_score)
+        net_worth_history = history.write_value("net_worth", self.net_worth)
         logger = get_logger()
         logger.info("assembling net worth and credit report")
         net_worth_html = tags.html()
         with net_worth_html.add(tags.body()).add(tags.div(id='content')):
             with tags.table(rules="cols", frame="box", align="center"):
                 with tags.thead(style=BORDER_STYLE):
-                    tags.th("Net Worth", style=BORDER_STYLE)
-                    tags.th("Credit Report", style=BORDER_STYLE)
-                    tags.tr(style=BORDER_STYLE)
-                    if self.net_worth is None:
-                        tags.td("not available")
-                    else:
-                        tags.td("${:,.2f}".format(self.net_worth))
-                    if self.credit_score is None:
-                        tags.td("not available")
-                    else:
-                        tags.td("{}".format(self.credit_score), align="center")
+                    tags.th("Net Worth", colspan="2", style=BORDER_STYLE)
+                    tags.th("Credit Report", colspan="2", style=BORDER_STYLE)
+                    with tags.tr(style=BORDER_STYLE):
+                        if self.net_worth is None:
+                            tags.td("not available")
+                        else:
+                            tags.td(CURRENCY_STYLE.format(self.net_worth), colspan="2", align="center")
+                        if self.credit_score is None:
+                            tags.td("not available")
+                        else:
+                            credit_score = self.get_credit_score(self.credit_score)
+                            tags.td("{} {} ({}-{})".format(self.credit_score,
+                                                           credit_score["title"], credit_score["min"],
+                                                           credit_score["max"]),
+                                    align="center", colspan="2")
+                    with tags.tr(style=BORDER_STYLE):
+                        tags.th("min", style=BORDER_STYLE)
+                        tags.th("max", style=BORDER_STYLE)
+                        tags.th("min", style=BORDER_STYLE)
+                        tags.th("max", style=BORDER_STYLE)
+                    with tags.tr(stype=BORDER_STYLE):
+                        tags.td(CURRENCY_STYLE.format(net_worth_history[config_utils.HiLow.low_tag]), align="center")
+                        tags.td(CURRENCY_STYLE.format(net_worth_history[config_utils.HiLow.hi_tag]), align="center")
+                        tags.td(credit_history[config_utils.HiLow.low_tag], align="center")
+                        tags.td(credit_history[config_utils.HiLow.hi_tag], align="center")
         return net_worth_html
 
     def create_deposit_warnings(self, user):
@@ -518,6 +564,8 @@ class PrettyPrint:
             handled_accounts = []
             if user.display_credit_report:
                 net_worth_credit_score_html = self.create_net_worth_credit_score()
+            else:
+                net_worth_credit_score_html = None
             deposit_warnings_html = self.create_deposit_warnings(user)
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
                 continue
