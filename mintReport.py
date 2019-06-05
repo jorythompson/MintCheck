@@ -481,20 +481,45 @@ class PrettyPrint:
                         if self.net_worth is None:
                             tags.td("not available")
                         else:
-                            tags.td(CURRENCY_STYLE.format(self.net_worth), colspan="2", align="center")
+                            direction = net_worth_history[config_utils.HiLow.direction_tag]
+                            if direction == config_utils.HiLow.Direction.Up:
+                                direction = ' (\u2191)'
+                                color = "color:green"
+                            elif direction == config_utils.HiLow.Direction.Down:
+                                direction = ' (\u2193)'
+                                color = "color:red"
+                            elif direction == config_utils.HiLow.Direction.NoChange:
+                                direction = " (-)"
+                                color = ""
+                            else:
+                                raise Exception("Unsupported direction found ({})".format(direction))
+                            tags.td(CURRENCY_STYLE.format(self.net_worth) + direction,
+                                    colspan="2", align="center", style=color)
                         if self.credit_score is None:
                             tags.td("not available")
                         else:
                             credit_score = self.get_credit_score(self.credit_score)
-                            tags.td("{} {} ({}-{})".format(self.credit_score,
+                            direction = credit_history[config_utils.HiLow.direction_tag]
+                            if direction == config_utils.HiLow.Direction.Up:
+                                direction = ' (\u2191)'
+                                color = "color:green"
+                            elif direction == config_utils.HiLow.Direction.Down:
+                                direction = ' (\u2193)'
+                                color = "color:red"
+                            elif direction == config_utils.HiLow.Direction.NoChange:
+                                direction = " (-)"
+                                color = ""
+                            else:
+                                raise Exception("Unsupported direction found ({})".format(direction))
+                            tags.td("{} {} {} ({}-{})".format(self.credit_score, direction,
                                                            credit_score["title"], credit_score["min"],
                                                            credit_score["max"]),
-                                    align="center", colspan="2")
+                                    align="center", colspan="2", style=color)
                     with tags.tr(style=BORDER_STYLE):
-                        tags.th("min", style=BORDER_STYLE)
-                        tags.th("max", style=BORDER_STYLE)
-                        tags.th("min", style=BORDER_STYLE)
-                        tags.th("max", style=BORDER_STYLE)
+                        tags.th("min", style="font-weight: normal")
+                        tags.th("max", style="font-weight: normal")
+                        tags.th("min", style="font-weight: normal")
+                        tags.th("max", style="font-weight: normal")
                     with tags.tr(stype=BORDER_STYLE):
                         tags.td(CURRENCY_STYLE.format(net_worth_history[config_utils.HiLow.low_tag]), align="center")
                         tags.td(CURRENCY_STYLE.format(net_worth_history[config_utils.HiLow.hi_tag]), align="center")

@@ -39,6 +39,7 @@ class MintCheck:
         self.mint = None
         self.credit_score = None
         self.net_worth = None
+        self.attention = None
         self.status = "constructing"
         logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
 
@@ -60,12 +61,6 @@ class MintCheck:
             logger.debug("Initially connecting to Mint...")
             self.status = "initially connecting"
             self.mint = self.connect()
-            # No longer have to wait for mint to refresh - its built into the api
-            # if self.mint is not None:
-            #    self.mint.close()
-            #logger.debug("reconnecting to Mint to get data...")
-            # self.status = "reconnecting to collect data"
-            # self.mint = self.connect()
             try:
                 self.net_worth = self.mint.get_net_worth()
             except Exception as e:
@@ -73,6 +68,11 @@ class MintCheck:
             try:
                 self.credit_score = self.mint.get_credit_score()
             except Exception as e:
+                pass
+            # noinspection PyBroadException
+            try:
+                self.attention = self.mint.attention
+            except Exception:
                 pass
             logger.info("getting accounts...")
             self.accounts = self.mint.get_accounts(get_detail=False)
@@ -164,6 +164,7 @@ class MintCheck:
                 pickle.dump(self.mint_transactions, handle)
                 pickle.dump(self.credit_score, handle)
                 pickle.dump(self.net_worth, handle)
+                pickle.dump(self.attention, handle)
 
     def unpickle_mint(self):
         logger = get_logger()
@@ -174,6 +175,7 @@ class MintCheck:
                 self.mint_transactions = pickle.load(handle)
                 self.credit_score = pickle.load(handle)
                 self.net_worth = pickle.load(handle)
+                self.attention = pickle.load(handle)
 
 
 def kill_chrome():
