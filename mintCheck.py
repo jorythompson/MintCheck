@@ -69,11 +69,7 @@ class MintCheck:
                 self.credit_score = self.mint.get_credit_score()
             except Exception as e:
                 pass
-            # noinspection PyBroadException
-            try:
-                self.attention = self.mint.attention
-            except Exception:
-                pass
+            self.attention = self.mint.attention
             logger.info("getting accounts...")
             self.accounts = self.mint.get_accounts(get_detail=False)
             logger.info("Getting transactions...")

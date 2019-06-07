@@ -467,7 +467,7 @@ class PrettyPrint:
 
     def create_attention(self):
         logger = get_logger()
-        logger.info("assembling net worth and credit report")
+        logger.info("assembling attention block")
         attention_html = tags.html()
         if self.attention is None:
             return None
@@ -497,17 +497,21 @@ class PrettyPrint:
                         else:
                             direction = net_worth_history[config_utils.HiLow.direction_tag]
                             if direction == config_utils.HiLow.Direction.Up:
-                                direction = ' (\u2191)'
+                                direction_str = ' ({} {})'.format(
+                                    CURRENCY_STYLE.format(net_worth_history[config_utils.HiLow.change_amount_tag]),
+                                    "\u2191")
                                 color = "color:green"
                             elif direction == config_utils.HiLow.Direction.Down:
-                                direction = ' (\u2193)'
+                                direction_str = ' ({} {})'.format(
+                                    CURRENCY_STYLE.format(net_worth_history[config_utils.HiLow.change_amount_tag]),
+                                    "\u2193")
                                 color = "color:red"
                             elif direction == config_utils.HiLow.Direction.NoChange:
-                                direction = " (-)"
+                                direction_str = " (-)"
                                 color = ""
                             else:
                                 raise Exception("Unsupported direction found ({})".format(direction))
-                            tags.td(CURRENCY_STYLE.format(self.net_worth) + direction,
+                            tags.td(CURRENCY_STYLE.format(self.net_worth) + direction_str,
                                     colspan="2", align="center", style=color)
                         if self.credit_score is None:
                             tags.td("not available")
@@ -515,19 +519,23 @@ class PrettyPrint:
                             credit_score = self.get_credit_score(self.credit_score)
                             direction = credit_history[config_utils.HiLow.direction_tag]
                             if direction == config_utils.HiLow.Direction.Up:
-                                direction = ' (\u2191)'
+                                direction_str = ' ({} {})'.format(
+                                    CURRENCY_STYLE.format(credit_history[config_utils.HiLow.change_amount_tag]),
+                                    "\u2191")
                                 color = "color:green"
                             elif direction == config_utils.HiLow.Direction.Down:
-                                direction = ' (\u2193)'
+                                direction_str = ' ({} {})'.format(
+                                    CURRENCY_STYLE.format(credit_history[config_utils.HiLow.change_amount_tag]),
+                                    "\u2193")
                                 color = "color:red"
                             elif direction == config_utils.HiLow.Direction.NoChange:
-                                direction = " (-)"
+                                direction_str = " (-)"
                                 color = ""
                             else:
                                 raise Exception("Unsupported direction found ({})".format(direction))
-                            tags.td("{} {} {} ({}-{})".format(self.credit_score, direction,
-                                                           credit_score["title"], credit_score["min"],
-                                                           credit_score["max"]),
+                            tags.td("{} {} {} ({}-{})".format(self.credit_score, direction_str,
+                                                              credit_score["title"], credit_score["min"],
+                                                              credit_score["max"]),
                                     align="center", colspan="2", style=color)
                     with tags.tr(style=BORDER_STYLE):
                         tags.th("min", style="font-weight: normal")
