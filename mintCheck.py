@@ -46,8 +46,8 @@ class MintCheck:
     def connect(self):
         self.status = "creating Mint API connection"
         if os.path.exists(self.config.session_path):
-                if not os.path.isdir(self.config.session_path):
-                    raise Exception("{} must either not exist or be a folder".format(self.config.session_path))
+            if not os.path.isdir(self.config.session_path):
+                raise Exception("{} must either not exist or be a folder".format(self.config.session_path))
         else:
             os.makedirs(self.config.session_path)
         return mintapi.Mint.create(email=self.config.mint_username, password=self.config.mint_password,
@@ -69,7 +69,7 @@ class MintCheck:
                 self.credit_score = self.mint.get_credit_score()
             except Exception as e:
                 pass
-            self.attention = self.mint.attention
+            self.attention = self.mint.get_attention()
             logger.info("getting accounts...")
             self.accounts = self.mint.get_accounts(get_detail=False)
             logger.info("Getting transactions...")
