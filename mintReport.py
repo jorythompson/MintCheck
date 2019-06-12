@@ -1,17 +1,18 @@
+from mintCheck import MintCheck
+from emailSender import EmailSender
+from thompcoutils.log_utils import get_logger, get_log_file_name
+import thompcoutils.config_utils as config_utils
 import pickle
 import dominate.tags as tags
 from dominate.util import raw
-from emailSender import EmailSender
 import locale
 from operator import itemgetter
 import datetime
 from itertools import tee, chain, islice
-from mintCheck import MintCheck
 from datetime import datetime, date, time
 import os
 import dateutil
-from thompcoutils.log_utils import get_logger, get_log_file_name
-import thompcoutils.config_utils as config_utils
+import io
 
 BORDER_STYLE = "border-bottom:1px solid black"
 CURRENCY_STYLE = "${:,.2f}"
@@ -718,7 +719,7 @@ class PrettyPrint:
                     file_name = os.path.join(self.config.general_html_folder,
                                              user.name + "_" + self.config.debug_save_html)
                     logger.debug("saving html file to {}".format(file_name))
-                    with open(file_name, "w") as out_html:
+                    with io.open(file_name, "w", encoding="utf-8") as out_html:
                         out_html.write(message)
                 if self.config.debug_send_email:
                     email_sender = EmailSender(self.config.email_connection)
