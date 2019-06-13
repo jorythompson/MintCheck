@@ -38,6 +38,8 @@ GENERAL_MIN_SPEND_THRESHOLD = "min_spend_threshold"
 GENERAL_MIN_SPEND_COLOR = "min_spend_color"
 GENERAL_MAX_SPEND_THRESHOLD = "max_spend_threshold"
 GENERAL_MAX_SPEND_COLOR = "max_spend_color"
+GENERAL_CREDIT_REPORT_TITLE = "credit_report_title"
+GENERAL_NET_WORTH_TITLE = "net_worth_title"
 
 # USER block
 USER_EMAIL = "email"
@@ -290,6 +292,14 @@ class MintConfigFile:
             GENERAL_TITLE, GENERAL_MONTH_START,
             1,
             "The day of the month the month starts")
+        self.credit_report_title = cfg_mgr.read_entry(
+            GENERAL_TITLE, GENERAL_CREDIT_REPORT_TITLE,
+            "Credit Report",
+            "Title for the Credit Report section of the HTML")
+        self.net_worth_title = cfg_mgr.read_entry(
+            GENERAL_TITLE, GENERAL_NET_WORTH_TITLE,
+            "Net Worth",
+            "Title for the Net Worth section of the HTML")
         balance_warnings = cfg_mgr.read_section(
             BALANCE_WARNINGS_TITLE,
             {"Chase Checking": "< 25", "Savings": ">= 100"},

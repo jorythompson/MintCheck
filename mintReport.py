@@ -490,8 +490,8 @@ class PrettyPrint:
         with net_worth_html.add(tags.body()).add(tags.div(id='content')):
             with tags.table(rules="cols", frame="box", align="center"):
                 with tags.thead(style=BORDER_STYLE):
-                    tags.th("Net Worth", colspan="2", style=BORDER_STYLE)
-                    tags.th("Credit Report", colspan="2", style=BORDER_STYLE)
+                    tags.th(self.config.net_worth_title, colspan="2", style=BORDER_STYLE)
+                    tags.th(self.config.credit_report_title, colspan="2", style=BORDER_STYLE)
                     with tags.tr(style=BORDER_STYLE):
                         if self.net_worth is None:
                             tags.td("not available")
