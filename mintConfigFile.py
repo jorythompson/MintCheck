@@ -208,6 +208,10 @@ class MintConfigFile:
             GENERAL_TITLE, GENERAL_WEEK_START,
             "Monday",
             "The day of the week that week starts")
+        self.kill_all_chromes = cfg_mgr.read_entry(
+            GENERAL_TITLE, "kill_all_chromes",
+            False,
+            "Kill ALL Chrome processes - good for servers")
         self.general_month_start = cfg_mgr.read_entry(
             GENERAL_TITLE, GENERAL_MONTH_START,
             1,

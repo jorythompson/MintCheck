@@ -1,6 +1,5 @@
 from thompcoutils.log_utils import get_logger, get_log_file_name
 import thompcoutils.os_utils as os_utils
-import sys
 import traceback
 import mintObjects
 import mintReport
@@ -16,7 +15,7 @@ import logging
 import logging.config
 import os
 import sys
-sys.path.insert(0, '../mintapi-jrt')
+sys.path.insert(0, '../mintapi')
 import mintapi
 
 
@@ -184,23 +183,31 @@ class MintCheck:
                 self.attention = pickle.load(handle)
 
 
-def kill_chrome():
-    if os_utils.os_type() == os_utils.OSType.WINDOWS:
-        chrome_processes = os_utils.find_processes("chrome.exe")
-        parents = []
-        for parent in chrome_processes:
-            for child in chrome_processes:
-                if child.ppid() == parent.pid:
-                    parents.append(parent)
-                    break
-        chrome_processes = parents
-    else:
-        chrome_processes = os_utils.find_processes("Google Chrome")
-
-    for process in chrome_processes:
-        child_processes = os_utils.list_child_processes(process.pid)
-        if len(child_processes) < 10:
+def kill_chrome(all_chromes=False):
+    if all_chromes:
+        if os_utils.os_type() == os_utils.OSType.WINDOWS:
+            chrome_processes = os_utils.find_processes("chrome.exe")
+        else:
+            chrome_processes = os_utils.find_processes("Google Chrome")
+        for process in chrome_processes:
             os_utils.kill_process(process)
+    else:
+        if os_utils.os_type() == os_utils.OSType.WINDOWS:
+            chrome_processes = os_utils.find_processes("chrome.exe")
+            parents = []
+            for parent in chrome_processes:
+                for child in chrome_processes:
+                    if child.ppid() == parent.pid:
+                        parents.append(parent)
+                        break
+            chrome_processes = parents
+        else:
+            chrome_processes = os_utils.find_processes("Google Chrome")
+
+        for process in chrome_processes:
+            child_processes = os_utils.list_child_processes(process.pid)
+            if len(child_processes) < 10:
+                os_utils.kill_process(process)
 
 
 def main():
@@ -219,7 +226,7 @@ def main():
             if mint_check is None:
                 mint_check = MintCheck()
             else:
-                kill_chrome()
+                kill_chrome(mint_check.config.kill_all_chromes)
             try:
                 if mint_check.args.live:
                     sleep_time = randint(0, 60 * mint_check.config.general_sleep)
