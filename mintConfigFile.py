@@ -27,7 +27,6 @@ GENERAL_WEEK_START = "week_start"
 GENERAL_MONTH_START = "month_start"
 GENERAL_ADMIN_EMAIL = "admin_email"
 GENERAL_USERS = "users"
-GENERAL_GOOGLE_SHEETS = "google_sheets"
 GENERAL_MAX_SLEEP = "max_sleep"
 GENERAL_EXCEPTIONS_TO = "exceptions_to"
 GENERAL_PICKLE_FOLDER = "pickle_folder"
@@ -56,7 +55,6 @@ LOCALE_TITLE = "locale"
 
 DEBUG_TITLE = "debug"
 DEBUG_MINT_DOWNLOAD = "download_mint"
-DEBUG_SHEETS_DOWNLOAD = "download_sheets"
 DEBUG_MINT_PICKLE_FILE = "mint_pickle_file"
 ACCOUNTS_PICKLE_FILE = "accounts_pickle_file"
 DEBUG_DEBUGGING = "debugging"
@@ -75,25 +73,12 @@ PAST_DUE_DAYS_BEFORE = "days_before"
 PAST_DUE_FOREGROUND_COLOR = "fg_color"
 PAST_DUE_BACKGROUND_COLOR = "bg_color"
 
-SHEETS_TITLE = "google_sheets"
-SHEETS_JSON_FILE = "json_file"
-SHEETS_DAY_ERROR = "max_day_error"
-SHEETS_NAME = "sheet_name"
-SHEETS_AMOUNT_COL = "amount_col"
-SHEETS_NOTES_COL = "notes_col"
-SHEETS_DATE_COL = "date_col"
-SHEETS_START_ROW = "start_row"
-SHEETS_DEPOSIT_ACCOUNT = "deposit_account"
-SHEETS_TAB_NAME = "tab_name"
-SHEETS_PAID_COLOR = "paid_color"
-SHEETS_UNPAID_COLOR = "unpaid_color"
 
 BALANCE_WARNINGS_TITLE = "balance warnings"
 PAID_FROM_TITLE = "paid from"
 
 SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, DEBUG_TITLE, COLORS_TITLE,
-               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE, BALANCE_WARNINGS_TITLE, PAID_FROM_TITLE,
-               SHEETS_TITLE]
+               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE, BALANCE_WARNINGS_TITLE, PAID_FROM_TITLE]
 
 
 class ConfigManagerException(Exception):
@@ -112,71 +97,6 @@ class BalanceWarning:
         dump_config_value("account name", self.account_name)
         dump_config_value("comparator", self.comparator)
         dump_config_value("amount", self.amount)
-
-
-class GoogleSheet:
-    def __init__(self, section, default_day_error, cfg_mgr):
-        logger = get_logger()
-        self.billing_account = section
-        self.sheet_name = cfg_mgr.read_entry(
-            section,
-            SHEETS_NAME,
-            "TD Bank 1234"
-            "This section represents a Google sheet that will be updated")
-        self.amount_col = cfg_mgr.read_entry(
-            section,
-            SHEETS_AMOUNT_COL,
-            "A",
-            "The column in the sheet name to enter data")
-        self.notes_col = cfg_mgr.read_entry(
-            section,
-            SHEETS_NOTES_COL,
-            "B",
-            "The column in the sheet to enter notes")
-        self.date_col = cfg_mgr.read_entry(
-            section,
-            SHEETS_DATE_COL,
-            "C",
-            "The column in the sheet to enter the date")
-        self.start_row = cfg_mgr.read_entry(
-            section,
-            SHEETS_START_ROW,
-            2,
-            "The row in the sheet to begin")
-        self.deposit_account = cfg_mgr.read_entry(
-            section,
-            SHEETS_DEPOSIT_ACCOUNT,
-            "checking account 1",
-            "The account to deposit to")
-        try:
-            self.tab_name = cfg_mgr.read_entry(
-                section,
-                SHEETS_TAB_NAME,
-                "deposits",
-                "The tab to use for this entry")
-        except Exception as e:
-            logger.exception(e)
-            ConfigManager.missing_entry(section, SHEETS_TAB_NAME, cfg_mgr.file_name)
-        try:
-            self.day_error = cfg_mgr.read_entry(
-                section,
-                SHEETS_DAY_ERROR,
-                5,
-                "the sheets day error")
-        except Exception as e:
-            ConfigManager.missing_entry(section, SHEETS_DAY_ERROR, cfg_mgr.file_name, default_day_error)
-            self.day_error = default_day_error
-
-    def dump(self):
-        dump_config_value(SHEETS_TITLE)
-        dump_config_value(SHEETS_TITLE, self.billing_account)
-        dump_config_value(SHEETS_NAME, self.sheet_name)
-        dump_config_value(SHEETS_AMOUNT_COL, self.amount_col)
-        dump_config_value(SHEETS_DATE_COL, self.date_col)
-        dump_config_value(SHEETS_START_ROW, self.start_row)
-        dump_config_value(SHEETS_DEPOSIT_ACCOUNT, self.deposit_account)
-        dump_config_value(SHEETS_TAB_NAME, self.tab_name)
-        dump_config_value(SHEETS_DAY_ERROR, self.day_error)
 
 
 class MintUser:
@@ -346,10 +266,6 @@ class MintConfigFile:
             "List of users to send emails to")
         if general_users is not None:
             self.general_users = ast.literal_eval("[" + general_users + "]")
-        self.general_google_sheets = cfg_mgr.read_entry(
-            GENERAL_TITLE, GENERAL_GOOGLE_SHEETS,
-            ["\"all\", \"my google sheet\""],
-            "list of Google sheets to update")
         self.general_sleep = cfg_mgr.read_entry(
             GENERAL_TITLE, GENERAL_MAX_SLEEP,
             10,
@@ -445,11 +361,6 @@ class MintConfigFile:
             DEBUG_DEBUGGING,
             False,
             "If True, MintCheck will dump data to the screen")
-        self.debug_sheets_download = cfg_mgr.read_entry(
-            DEBUG_TITLE,
-            DEBUG_SHEETS_DOWNLOAD,
-            True,
-            "If True, MintChecker dumps Google sheet data to the screen")
         self.debug_copy_admin = cfg_mgr.read_entry(
             DEBUG_TITLE,
             DEBUG_COPY_ADMIN,
@@ -477,30 +388,7 @@ class MintConfigFile:
             "This indicates the color to present a credit account if it is "
                                                     "past due")
         self.email_connection = EmailConnection(cfg_mgr, filename=file_name, create=create)
-        json_file = cfg_mgr.read_entry(
-            SHEETS_TITLE,
-            SHEETS_JSON_FILE,
-            "sheets.json",
-            "This is the name of the json file for Google sheets\nIt is for Debugging")
-        if not create:
-            self.sheets_json_file = os.path.join(self.current_dir, json_file)
-        self.sheets_day_error = cfg_mgr.read_entry\
-            (SHEETS_TITLE,
-             SHEETS_DAY_ERROR,
-             7,
-             "Day error - not sure what this is right now")
-        self.sheets_paid_color = cfg_mgr.read_entry(
-            SHEETS_TITLE,
-            SHEETS_PAID_COLOR,
-            "green",
-            "color to indicate its paid")
-        self.sheets_unpaid_color = cfg_mgr.read_entry(
-            SHEETS_TITLE,
-            SHEETS_UNPAID_COLOR,
-            "red",
-            "color to indicate iss not paid")
         self.users = []
-        self.google_sheets = []
         self.worst_day_error = 0
         for section in cfg_mgr.config.sections():
             if section not in SKIP_TITLES:
@@ -509,15 +397,6 @@ class MintConfigFile:
                         self.users.append(MintUser(section, cfg_mgr))
                     except Exception as e:
                         logger.exception(e)
-                        logger.debug("skipping Sheet section " + section + " in configuration file")
-                if (section in self.general_google_sheets or "all" in self.general_google_sheets) \
-                        and self.sheets_json_file is not None:
-                    try:
-                        sheet = GoogleSheet(section, self.sheets_day_error, cfg_mgr)
-                        if sheet.day_error > self.worst_day_error:
-                            self.worst_day_error = sheet.day_error
-                        self.google_sheets.append(sheet)
-                    except Exception as e:
                         logger.debug("skipping Sheet section " + section + " in configuration file")
 
         if (validate or test_email) and not create:
@@ -534,19 +413,12 @@ class MintConfigFile:
             dump_config_value(GENERAL_MONTH_START, self.general_month_start)
             dump_config_value(GENERAL_ADMIN_EMAIL, self.general_admin_email)
             dump_config_value(GENERAL_USERS, self.general_users)
-            dump_config_value(GENERAL_GOOGLE_SHEETS, self.general_google_sheets)
             dump_config_value(GENERAL_EXCEPTIONS_TO, self.general_exceptions_to)
             dump_config_value(GENERAL_MAX_SLEEP, self.general_sleep)
-            # sheets block
-            dump_config_value(SHEETS_TITLE)
-            dump_config_value(SHEETS_TITLE, self.sheets_json_file)
-            for sheet in self.google_sheets:
-                sheet.dump()
 
             # debug block
             dump_config_value(DEBUG_TITLE)
             dump_config_value(DEBUG_MINT_DOWNLOAD, self.debug_mint_download)
-            dump_config_value(DEBUG_SHEETS_DOWNLOAD, self.debug_sheets_download)
             dump_config_value(DEBUG_TITLE, self.debug_save_html)
             dump_config_value(DEBUG_MINT_PICKLE_FILE, self.debug_mint_pickle_file)
             dump_config_value(DEBUG_DEBUGGING, self.debug_debugging)

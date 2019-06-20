@@ -19,14 +19,13 @@ CURRENCY_STYLE = "${:,.2f}"
 
 
 class PrettyPrint:
-    def __init__(self, mint, sheets):
+    def __init__(self, mint):
         self.config = mint.config
         self.net_worth = mint.net_worth
         self.credit_score = mint.credit_score
         self.attention = mint.attention
         self.accounts = mint.accounts
         self.transactions = mint.mint_transactions
-        self.sheets = sheets
         self.now = datetime.combine(date.today(), time())
         self.doc = None
         self.fis = None
@@ -109,7 +108,9 @@ class PrettyPrint:
             for fi in self.fis:
                 fis_title_saved = False
                 for account in self.accounts:
-                    if fi == account["fiName"] and self.config.mint_ignore_accounts not in account["accountName"] and \
+                    if fi == account["fiName"] and \
+                            self.config.mint_ignore_accounts not in account["accountName"] and \
+                            account["isActive"] and \
                             (account["accountName"] in user.active_accounts or "all" in user.active_accounts):
                         activity = True
                         if account not in handled_accounts:
@@ -428,8 +429,7 @@ class PrettyPrint:
     def create_debug_section(self):
         logger = get_logger()
         debug_html = None
-        if not self.config.debug_send_email or not self.config.debug_mint_download \
-                or not self.config.debug_sheets_download:
+        if not self.config.debug_send_email or not self.config.debug_mint_download :
             debug_html = tags.html()
             logger.info("assembling debug section")
             with debug_html.add(tags.body()).add(tags.div(id='content')):
@@ -438,8 +438,6 @@ class PrettyPrint:
                     tags.h3("Not sending emails", align="center", style="color:red")
                 if not self.config.debug_mint_download:
                     tags.h3("Not downloading data from Mint", align="center", style="color:red")
-                if not self.config.debug_sheets_download:
-                    tags.h3("Not downloading data from Google sheets", align="center", style="color:red")
         return debug_html
 
     @staticmethod
@@ -480,7 +478,7 @@ class PrettyPrint:
         return attention_html
 
     def create_net_worth_credit_score(self):
-        file_name = os.path.join(self.config.general_html_folder,"credit_net_worth.ini")
+        file_name = os.path.join(self.config.general_html_folder, "credit_net_worth.ini")
         history = config_utils.HiLow(file_name)
         credit_history = history.write_value("credit_score", self.credit_score)
         net_worth_history = history.write_value("net_worth", self.net_worth)
@@ -550,41 +548,6 @@ class PrettyPrint:
                         tags.td(credit_history[config_utils.HiLow.hi_tag], align="center")
         return net_worth_html
 
-    def create_deposit_warnings(self, user):
-        logger = get_logger()
-        sheets = self.sheets.get_missing_deposits(self.transactions, user)
-        deposit_warnings_html = tags.html()
-        if len(sheets) > 0:
-            logger.info("assembling missing deposits")
-            with deposit_warnings_html.add(tags.body()).add(tags.div(id='content')):
-                tags.h1("Managed Deposits", align="center")
-                with tags.table(rules="cols", frame="box", align="center"):
-                    with tags.thead(style=BORDER_STYLE):
-                        tags.th("Reference")
-                        tags.th("Notes")
-                        tags.th("Deposit Account")
-                        tags.th("Expected Deposit Date")
-                        tags.th("Actual Deposit Date")
-                        tags.th("Amount", colspan="2", style=BORDER_STYLE)
-                    for deposit in sheets:
-                        if deposit["actual_deposit_date"] is None:
-                            color = self.config.sheets_unpaid_color
-                            actual_deposit_date = "NONE"
-                        else:
-                            color = self.config.sheets_paid_color
-                            actual_deposit_date = deposit["actual_deposit_date"].strftime("%a, %b %d")
-                        with tags.tr(style="color:" + color):
-                            tags.td(deposit["billing_account"])
-                            tags.td(deposit["notes"])
-                            tags.td(deposit["deposit_account"])
-                            tags.td(deposit["expected_deposit_date"].strftime("%a, %b %d"))
-                            tags.td(actual_deposit_date)
-                            tags.td(locale.currency(deposit["deposit_amount"], grouping=True))
-        else:
-            with deposit_warnings_html.add(tags.body()).add(tags.div(id='content')):
-                tags.h5("No Managed Deposits For This Period", align="center")
-        return deposit_warnings_html
-
     def pickle_previous_accounts(self, new_accounts):
         if self.config.previous_accounts_pickle_file is not None:
             with open(self.config.previous_accounts_pickle_file, 'wb') as handle:
@@ -615,7 +578,6 @@ class PrettyPrint:
             else:
                 net_worth_credit_score_html = None
             attention_html = self.create_attention()
-            deposit_warnings_html = self.create_deposit_warnings(user)
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
                 continue
             logger.info("handling user:" + user.name)
@@ -648,6 +610,7 @@ class PrettyPrint:
                 self.fis = self.transactions.get_financial_institutions(start_date)
                 activity_html, bad_transactions = \
                     self.create_activity(start_date, user, handled_accounts, user_accounts)
+                bad_transactions.sort(key=lambda item: item[0]['date'], reverse=True)
                 balance_warnings_html = self.create_balance_warnings(balance_warnings, user)
                 fees_html = self.get_fees(bad_transactions, user)
                 accounts_html, accounts, debit_accounts, missing_debit_accounts = self.get_accounts(user)
@@ -668,8 +631,6 @@ class PrettyPrint:
                     message += str(balance_warnings_html)
                 if fees_html is not None:
                     message += str(fees_html)
-                if deposit_warnings_html is not None:
-                    message += str(deposit_warnings_html)
                 message += str(activity_html)
                 if len(accounts) > 0:
                     message += str(accounts_html)
@@ -686,12 +647,8 @@ class PrettyPrint:
                     raw_html = 'Color Key:<br>' \
                                'Account Types: <font color="{}">' \
                                '"Credit cards"</font>, <font color="{}">' \
-                               '"Bank Accounts"</font>, <font color="{}">' \
-                               '"Verified Deposits"</font>, <font color="{}">' \
                                '"Missing Deposits"</font>'.format(self.config.account_type_credit_fg,
-                                                                  self.config.account_type_bank_fg,
-                                                                  self.config.sheets_paid_color,
-                                                                  self.config.sheets_unpaid_color)
+                                                                  self.config.account_type_bank_fg)
                     raw_html += "<br>Keywords: "
                     last_color = list(self.config.color_tags)[-1]
                     last_keyword = list(self.config.color_tags[last_color])[-1]

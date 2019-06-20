@@ -2,7 +2,6 @@ from thompcoutils.log_utils import get_logger, get_log_file_name
 import thompcoutils.os_utils as os_utils
 import sys
 import traceback
-import mintapi
 import mintObjects
 import mintReport
 import argparse
@@ -15,8 +14,10 @@ from random import randint
 import time
 import logging
 import logging.config
-from mintSheets import MintSheet
 import os
+import sys
+sys.path.insert(0, '../mintapi-jrt')
+import mintapi
 
 
 # from datetime import datetime, date, time
@@ -54,26 +55,31 @@ class MintCheck:
                                    headless=self.config.headless, mfa_method="sms",
                                    session_path=self.config.session_path)
 
-    def _get_data(self, start_date):
+    def _get_data(self):
         logger = get_logger()
+        start_date = datetime.datetime.today() - datetime.timedelta(days=31)
         logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
         if self.config.debug_mint_download:
-            logger.debug("Initially connecting to Mint...")
-            self.status = "initially connecting"
+            logger.debug("Connecting to Mint...")
+            self.status = "Connecting"
             self.mint = self.connect()
+            message = "Getting net worth...{}{}"
             try:
                 self.net_worth = self.mint.get_net_worth()
+                logger.debug(message.format("success", ""))
             except Exception as e:
-                pass
+                logger.debug(message.format("failed", str(e)))
+            message = "Getting credit score...{}{}"
             try:
                 self.credit_score = self.mint.get_credit_score()
+                logger.debug(message.format("success", ""))
             except Exception as e:
-                pass
+                logger.debug(message.format("failed", str(e)))
             self.attention = self.mint.get_attention()
             logger.info("getting accounts...")
             self.accounts = self.mint.get_accounts(get_detail=False)
             logger.info("Getting transactions...")
-            self.mint_transactions = self.mint.get_transactions_json(include_investment=False,
+            self.mint_transactions = self.mint.get_transactions_json(include_investment=True,
                                                                      skip_duplicates=self.config.mint_remove_duplicates,
                                                                      start_date=start_date.strftime('%m/%d/%y'))
             logger.debug("pickling mint objects...")
@@ -109,6 +115,11 @@ class MintCheck:
                             help='Requests Mint to send validation via text')
         return parser.parse_args()
 
+    """
+    This is really the right way to get the start date.  It looks at the frequencies needed and the current date to
+    determine the date to begin collecting data from.  Currently I am using today - 31 (one month of data) to ensure
+    we get enough data for subsequent testing.
+    """
     @staticmethod
     def get_start_date(now, week_start, month_start, frequencies_needed):
         start_date = None
@@ -139,17 +150,16 @@ class MintCheck:
                     frequencies_needed.append(frequency)
 
         if len(frequencies_needed) > 0:
-            max_day_error = 0
-            for sheet in self.config.google_sheets:
-                if sheet.day_error > max_day_error:
-                    max_day_error = sheet.day_error
+            '''
+            This is intended to limit the data required for this report.  For now, I am looking back 31 days.
             start_date, ignore = self.get_start_date(self.now, self.config.general_week_start,
                                                      self.config.general_month_start, frequencies_needed)
             if start_date is not None:
                 self._get_data(start_date - datetime.timedelta(days=max_day_error))
-                mint_sheet = MintSheet(self.config, start_date)
-                report = mintReport.PrettyPrint(self, mint_sheet)
-                report.send_data()
+            '''
+            self._get_data()
+            report = mintReport.PrettyPrint(self)
+            report.send_data()
 
     def pickle_mint(self):
         logger = get_logger()
@@ -201,6 +211,7 @@ def main():
     logger.info("Getting logging configuration from:" + log_configuration_file)
     success = False
     mint_check = MintCheck()
+    email_sender = EmailSender(mint_check.config.email_connection)
     for attempt in range(mint_check.config.max_retries):
         # Occasionally Mint fails with strange exceptions.  This loop will try several times before giving up.
         # Note that each failure will email the exception to the appropriate recipients
@@ -248,20 +259,28 @@ def main():
                         message += line + "<br>"
                         logger.critical(line)
                     message += "\nLog information:\n"
-                    email_sender = EmailSender(mint_check.config.email_connection)
                     subject = "Exception {} of {} caught in Mint Checker at {} while {}".\
                         format(attempt+1, mint_check.config.max_retries, mint_check.now, mint_check.status)
-                    for email_to in mint_check.config.general_exceptions_to:
-                        # noinspection PyBroadException
-                        try:
-                            email_sender.send(to_email=email_to,
-                                              subject=subject,
-                                              message=message, attach_file=get_log_file_name())
-                        except Exception:
-                            email_sender.send(to_email=email_to, subject=subject,
-                                              message=message)
-                    pass
+                    send_admin_message(email_sender, mint_check.config.general_exceptions_to, subject=subject,
+                                       message=message)
+    if not success:
+        send_admin_message(email_sender, mint_check.config.general_exceptions_to,
+                           "Too many attempts {}".format(mint_check.config.max_retries),
+                           "The connection is timing out")
+
     logger.info("Done!")
+
+
+def send_admin_message(email_sender, admin_emails, subject, message):
+    for email_to in admin_emails:
+        # noinspection PyBroadException
+        try:
+            email_sender.send(to_email=email_to,
+                              subject=subject,
+                              message=message, attach_file=get_log_file_name())
+        except Exception:
+            email_sender.send(to_email=email_to, subject=subject,
+                              message=message)
 
 
 if __name__ == "__main__":

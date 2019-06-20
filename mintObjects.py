@@ -4,20 +4,16 @@ import logging
 import re
 
 
-def clean_dictionary(name, obj):
+def clean_dictionary(name, transactions):
     logger = logging.getLogger(inspect.stack()[0][3])
     logger.debug(name + " before:")
-    logger.debug(str(obj))
-    try:
-        for transaction in obj:
-            for key in transaction:
-                clean_key = to_string(key)
-                transaction[clean_key] = to_string(transaction[clean_key])
-                transaction[clean_key] = parse_all(clean_key, transaction[clean_key])
-        logger.debug(to_string(obj))
-    except Exception as e:
-        raise e
-    return obj
+    logger.debug(str(transactions))
+    for transaction in transactions:
+        for key in transaction:
+            clean_key = to_string(key)
+            transaction[clean_key] = to_string(transaction[clean_key])
+            transaction[clean_key] = parse_all(clean_key, transaction[clean_key])
+    return transactions
 
 
 DATE_STRING_FIELDS = [
@@ -132,20 +128,8 @@ class MintTransactions:
                     total -= amount
                 else:
                     total += amount
-        return MintTransactions.sort_by_key(transactions), total
-
-    @staticmethod
-    def sort_by_key(transactions):
-        trans = []
-        for k in transactions:
-            i = 0
-            while i < len(trans):
-                if trans[i]["date"] > k["date"]:
-                    break
-                else:
-                    i += 1
-            trans.insert(i, k)
-        return trans
+        transactions.sort(key=lambda item: item['date'], reverse=True)
+        return transactions, total
 
 
 class MintAccounts:
