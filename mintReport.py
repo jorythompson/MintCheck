@@ -681,11 +681,12 @@ class PrettyPrint:
                 if self.config.debug_send_email:
                     email_sender = EmailSender(self.config.email_connection)
                     for email in user.email:
+                        log_file = None
                         logger.debug("Sending email to {}".format(email))
-                        if email.lower() == self.config.general_admin_email.lower() and self.config.debug_attach_log:
-                            log_file = get_log_file_name()
-                        else:
-                            log_file = None
+                        for admin_email in self.config.general_admin_email:
+                            if email.lower() == admin_email.lower() and self.config.debug_attach_log:
+                                log_file = get_log_file_name()
+                                break
                         email_sender.send(to_email=email, subject=user.subject, message=message, attach_file=log_file)
                 else:
                     logger.debug("Not sending emails")

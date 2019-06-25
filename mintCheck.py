@@ -15,6 +15,7 @@ import logging
 import logging.config
 import os
 import sys
+import psutil
 sys.path.insert(0, '../mintapi')
 import mintapi
 
@@ -52,7 +53,8 @@ class MintCheck:
             os.makedirs(self.config.session_path)
         return mintapi.Mint.create(email=self.config.mint_username, password=self.config.mint_password,
                                    headless=self.config.headless, mfa_method="sms",
-                                   session_path=self.config.session_path)
+                                   session_path=self.config.session_path,
+                                   wait_for_sync=True, wait_for_sync_timeout=10 * 60)
 
     def _get_data(self):
         logger = get_logger()
@@ -62,9 +64,16 @@ class MintCheck:
             logger.debug("Connecting to Mint...")
             self.status = "Connecting"
             self.mint = self.connect()
+            self.attention = self.mint.get_attention()
+            logger.info("getting accounts...")
+            self.accounts = self.mint.get_accounts(get_detail=False)
+            logger.info("Getting transactions...")
+            self.mint_transactions = self.mint.get_transactions_json(include_investment=True,
+                                                                     skip_duplicates=self.config.mint_remove_duplicates,
+                                                                     start_date=start_date.strftime('%m/%d/%y'))
             message = "Getting net worth...{}{}"
             try:
-                self.net_worth = self.mint.get_net_worth()
+                self.net_worth = self.mint.get_net_worth(self.accounts)
                 logger.debug(message.format("success", ""))
             except Exception as e:
                 logger.debug(message.format("failed", str(e)))
@@ -74,13 +83,6 @@ class MintCheck:
                 logger.debug(message.format("success", ""))
             except Exception as e:
                 logger.debug(message.format("failed", str(e)))
-            self.attention = self.mint.get_attention()
-            logger.info("getting accounts...")
-            self.accounts = self.mint.get_accounts(get_detail=False)
-            logger.info("Getting transactions...")
-            self.mint_transactions = self.mint.get_transactions_json(include_investment=True,
-                                                                     skip_duplicates=self.config.mint_remove_duplicates,
-                                                                     start_date=start_date.strftime('%m/%d/%y'))
             logger.debug("pickling mint objects...")
             self.pickle_mint()
         else:
@@ -210,6 +212,27 @@ def kill_chrome(all_chromes=False):
                 os_utils.kill_process(process)
 
 
+def kill_procs(session_path):
+    for proc in psutil.process_iter():
+        try:
+            # this returns the list of opened files by the current process
+            flist = proc.open_files()
+            if flist:
+                print("PID:{}, Name:{}".format(proc.pid, proc._name))
+                if "Google" in proc._name:
+                    for nt in flist:
+                        print("\t", nt.path)
+                        if session_path in nt:
+                            os_utils.kill_process(proc)
+                            print("\t", nt.path)
+
+        # This catches a race condition where a process ends
+        # before we can examine its files
+        except Exception as err:
+            print("****", err)
+    pass
+
+
 def main():
     logger = get_logger()
     local_path = os.path.dirname(os.path.abspath(__file__))
@@ -227,6 +250,7 @@ def main():
                 mint_check = MintCheck()
             else:
                 kill_chrome(mint_check.config.kill_all_chromes)
+                # kill_procs(mint_check.config.session_path)
             try:
                 if mint_check.args.live:
                     sleep_time = randint(0, 60 * mint_check.config.general_sleep)

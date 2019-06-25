@@ -117,7 +117,7 @@ class MintUser:
         self.frequency = cfg_mgr.read_entry(
             name,
             USER_FREQUENCY,
-            ["daily", "monthly", "weekly", "biweekly"],
+            ALLOWED_USER_FREQUENCIES,
             "How often do you want to be informed?")
         for freq in self.frequency:
             if freq not in ALLOWED_USER_FREQUENCIES:
@@ -212,6 +212,11 @@ class MintConfigFile:
             GENERAL_TITLE, "kill_all_chromes",
             False,
             "Kill ALL Chrome processes - good for servers")
+        self.wait_for_sync = cfg_mgr.read_entry(
+            GENERAL_TITLE, "wait_for_sync",
+            5,
+            "Wait for sync with Mint before proceeding (minutes)")
+
         self.general_month_start = cfg_mgr.read_entry(
             GENERAL_TITLE, GENERAL_MONTH_START,
             1,
@@ -261,7 +266,7 @@ class MintConfigFile:
             locale.setlocale(locale.LC_ALL, self.locale_vals[platform.system()])
         self.general_admin_email = cfg_mgr.read_entry(
             GENERAL_TITLE, GENERAL_ADMIN_EMAIL,
-            "admin@mydomain.com",
+            ["admin@mydomain.com, admin2@domain2.com"],
             "Google email address of the account mails will be sent from")
         general_users = cfg_mgr.read_entry(
             GENERAL_TITLE,
@@ -279,8 +284,9 @@ class MintConfigFile:
         self.general_exceptions_to = cfg_mgr.read_entry(
             GENERAL_TITLE,
             GENERAL_EXCEPTIONS_TO,
-            ["errors@mydomein.com"],
+            "errors@mydomein.com, errors2@mydomein2.com",
             "email address to send exceptions to (generally an admin)")
+        self.general_exceptions_to = self.general_exceptions_to.split(",")
         self.general_html_folder = cfg_mgr.read_entry(
             GENERAL_TITLE,
             GENERAL_HTML_FOLDER,
