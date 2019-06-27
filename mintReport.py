@@ -468,7 +468,7 @@ class PrettyPrint:
         logger = get_logger()
         logger.info("assembling attention block")
         attention_html = tags.html()
-        if self.attention is None:
+        if self.attention is None or self.attention == "":
             return None
         else:
             with attention_html.add(tags.body()).add(tags.div(id='content')):
