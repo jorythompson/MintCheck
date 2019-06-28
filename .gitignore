@@ -4,7 +4,7 @@ google-chrome.*
 *.ini
 *.html
 *.pyc
-log.*
+logs
 chromedriver_session
 *.log
 pickle.*
