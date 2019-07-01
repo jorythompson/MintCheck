@@ -233,12 +233,19 @@ def kill_procs(session_path):
     pass
 
 
-def main():
+def load_log_config():
     logger = get_logger()
     local_path = os.path.dirname(os.path.abspath(__file__))
     log_configuration_file = os.path.join(local_path, 'logging.conf')
     logging.config.fileConfig(log_configuration_file)
-    logger.info("Getting logging configuration from:" + log_configuration_file)
+    # os.remove(logger.manager.root.handlers[0].baseFilename)
+    # logging.config.fileConfig(log_configuration_file)
+    logger.info("Beginning logging with configuration from:" + log_configuration_file)
+
+
+def main():
+    load_log_config()
+    logger = get_logger()
     success = False
     mint_check = MintCheck()
     email_sender = EmailSender(mint_check.config.email_connection)
