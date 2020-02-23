@@ -82,6 +82,7 @@ class MintCheck:
                 self.credit_score = self.mint.get_credit_score()
                 logger.debug(message.format("success", ""))
             except Exception as e:
+                self.credit_score = None
                 logger.debug(message.format("failed", str(e)))
             logger.debug("pickling mint objects...")
             self.pickle_mint()

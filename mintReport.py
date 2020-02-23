@@ -22,8 +22,8 @@ class PrettyPrint:
     def __init__(self, mint):
         self.config = mint.config
         self.net_worth = mint.net_worth
-        self.credit_score = mint.credit_score
-        self.attention = mint.attention
+        self.credit_score = int(mint.credit_score)
+        # jrt self.attention = mint.attention
         self.accounts = mint.accounts
         self.transactions = mint.mint_transactions
         self.now = datetime.combine(date.today(), time())
@@ -492,7 +492,7 @@ class PrettyPrint:
                     tags.th(self.config.credit_report_title, colspan="2", style=BORDER_STYLE)
                     with tags.tr(style=BORDER_STYLE):
                         if self.net_worth is None:
-                            tags.td("not available")
+                            tags.td("not available", colspan="2", align="center")
                         else:
                             direction = net_worth_history[config_utils.HiLow.direction_tag]
                             if direction == config_utils.HiLow.Direction.Up:
@@ -513,7 +513,7 @@ class PrettyPrint:
                             tags.td(CURRENCY_STYLE.format(self.net_worth) + direction_str,
                                     colspan="2", align="center", style=color)
                         if self.credit_score is None:
-                            tags.td("not available")
+                            tags.td("not available", colspan="2", align="center")
                         else:
                             credit_score = self.get_credit_score(self.credit_score)
                             direction = credit_history[config_utils.HiLow.direction_tag]
@@ -577,7 +577,7 @@ class PrettyPrint:
                 net_worth_credit_score_html = self.create_net_worth_credit_score()
             else:
                 net_worth_credit_score_html = None
-            attention_html = self.create_attention()
+            # jrt attention_html = self.create_attention()
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
                 continue
             logger.info("handling user:" + user.name)
@@ -621,8 +621,8 @@ class PrettyPrint:
                     message += str(debug_html)
                 if net_worth_credit_score_html is not None:
                     message += str(net_worth_credit_score_html)
-                if attention_html is not None:
-                    message += str(attention_html)
+                # jrt if attention_html is not None:
+                # jrt     message += str(attention_html)
                 if missing_accounts_html is not None:
                     message += str(missing_accounts_html)
                 if debit_accounts_html is not None:
