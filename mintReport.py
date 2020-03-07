@@ -23,7 +23,7 @@ class PrettyPrint:
         self.config = mint.config
         self.net_worth = mint.net_worth
         self.credit_score = int(mint.credit_score)
-        # jrt self.attention = mint.attention
+        self.attention = mint.attention
         self.accounts = mint.accounts
         self.transactions = mint.mint_transactions
         self.now = datetime.combine(date.today(), time())
@@ -577,7 +577,7 @@ class PrettyPrint:
                 net_worth_credit_score_html = self.create_net_worth_credit_score()
             else:
                 net_worth_credit_score_html = None
-            # jrt attention_html = self.create_attention()
+            attention_html = self.create_attention()
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
                 continue
             logger.info("handling user:" + user.name)
@@ -621,8 +621,8 @@ class PrettyPrint:
                     message += str(debug_html)
                 if net_worth_credit_score_html is not None:
                     message += str(net_worth_credit_score_html)
-                # jrt if attention_html is not None:
-                # jrt     message += str(attention_html)
+                if attention_html is not None:
+                    message += str(attention_html)
                 if missing_accounts_html is not None:
                     message += str(missing_accounts_html)
                 if debit_accounts_html is not None:

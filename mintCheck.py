@@ -45,16 +45,19 @@ class MintCheck:
         logger.debug("Today is " + self.now.strftime('%m/%d/%Y at %H:%M:%S'))
 
     def connect(self):
-        self.status = "creating Mint API connection"
+        logger = get_logger()
+        self.status = "creating Mint API connection.  Could be up to {} minute(s)".format(self.config.wait_for_sync)
         if os.path.exists(self.config.session_path):
             if not os.path.isdir(self.config.session_path):
                 raise Exception("{} must either not exist or be a folder".format(self.config.session_path))
         else:
             os.makedirs(self.config.session_path)
+
+        logger.debug(self.status)
         return mintapi.Mint.create(email=self.config.mint_username, password=self.config.mint_password,
                                    headless=self.config.headless, mfa_method="sms",
                                    session_path=self.config.session_path,
-                                   wait_for_sync=True, wait_for_sync_timeout=10 * 60)
+                                   wait_for_sync=True, wait_for_sync_timeout=self.config.wait_for_sync*60)
 
     def _get_data(self):
         logger = get_logger()
@@ -105,8 +108,8 @@ class MintCheck:
         parser = argparse.ArgumentParser(description='Read Information from Mint')
         parser.add_argument('--live', action="store_true", default=False,
                             help='Indicates Mint Checker is running live and should sleep a random period of time '
-                                 'before hitting Mint.com.  It also refreshes Mint and sleeps for 15 minutes while '
-                                 'Mint updates itself.')
+                                 'before hitting Mint.com.  It also refreshes Mint and sleeps while Mint updates '
+                                 'itself.')
         parser.add_argument('--config', required=True,
                             help='Configuration file containing your username, password,etc')
         parser.add_argument('--validate_ini', action="store_true", default=False,
@@ -264,7 +267,7 @@ def main():
                     sleep_time = randint(0, 60 * mint_check.config.general_sleep)
                     logger.info("Waiting a random time so we don't connect to Mint at the same time every day."
                                 + "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') + " for "
-                                + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minutes and %S seconds')
+                                + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minute(s) and %S second(s)')
                                 + ", waking at "
                                 + (datetime.datetime.now() +
                                    datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
