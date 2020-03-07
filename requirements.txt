@@ -1,0 +1,6 @@
+ThompcoUtils
+python-dateutil
+selenium
+selenium-requests
+xmltodict
+dominate
