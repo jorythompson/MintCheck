@@ -1,4 +1,6 @@
 echo off
+CD /D %~DP0
+
 if exist mintCheck.py (
   set PYTHONPATH=..\github\mintapi
 )
