@@ -46,7 +46,9 @@ class MintCheck:
 
     def connect(self):
         logger = get_logger()
-        self.status = "creating Mint API connection.  Could be up to {} minute(s)".format(self.config.wait_for_sync)
+        self.status = "creating Mint API connection.  Could be up to {} minute{}".\
+            format(self.config.wait_for_sync,
+                   '' if self.config.wait_for_sync == 1 else 's')
         if os.path.exists(self.config.session_path):
             if not os.path.isdir(self.config.session_path):
                 raise Exception("{} must either not exist or be a folder".format(self.config.session_path))
