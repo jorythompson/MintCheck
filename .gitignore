@@ -12,4 +12,4 @@ MintCheck.json
 MintCheck.log.*
 venv
 .idea
-session/
+session

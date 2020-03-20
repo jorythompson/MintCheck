@@ -1,3 +1,5 @@
+# Use this file like:
+# pip3 install -r requirements.txt
 ThompcoUtils
 python-dateutil
 selenium

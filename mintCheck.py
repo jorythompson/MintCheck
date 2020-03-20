@@ -248,6 +248,14 @@ def load_log_config():
 
 
 def main():
+    try:
+        os.mkdir("logs")
+    except FileExistsError:
+        pass
+    try:
+        os.rmdir("session")
+    except FileNotFoundError:
+        pass
     load_log_config()
     logger = get_logger()
     success = False
