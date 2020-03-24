@@ -1,16 +1,16 @@
 import ast
 import logging.config
 import logging.handlers
-from emailSender import EmailConnection
 import locale
-from emailSender import EmailSender
 import datetime
 import dateutil
 from dateutil.relativedelta import relativedelta
 from thompcoutils.log_utils import get_logger
 from thompcoutils.config_utils import ConfigManager
+from thompcoutils.email_utils import EmailConnectionConfig
 import os
 import platform
+import pathlib
 
 # mint connection block
 MINT_TITLE = "mint connection"
@@ -39,6 +39,9 @@ GENERAL_MAX_SPEND_THRESHOLD = "max_spend_threshold"
 GENERAL_MAX_SPEND_COLOR = "max_spend_color"
 GENERAL_CREDIT_REPORT_TITLE = "credit_report_title"
 GENERAL_NET_WORTH_TITLE = "net_worth_title"
+
+# Email block
+EMAIL_TITLE = 'email connection'
 
 # USER block
 USER_EMAIL = "email"
@@ -77,7 +80,7 @@ PAST_DUE_BACKGROUND_COLOR = "bg_color"
 BALANCE_WARNINGS_TITLE = "balance warnings"
 PAID_FROM_TITLE = "paid from"
 
-SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EmailConnection.TITLE, LOCALE_TITLE, DEBUG_TITLE, COLORS_TITLE,
+SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EMAIL_TITLE, LOCALE_TITLE, DEBUG_TITLE, COLORS_TITLE,
                ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE, BALANCE_WARNINGS_TITLE, PAID_FROM_TITLE]
 
 
@@ -182,11 +185,11 @@ class MintConfigFile:
             MINT_TITLE, HEADLESS,
             True,
             "True if you don't want chrome browser to display")
-        self.session_path = cfg_mgr.read_entry(
+        session_path = cfg_mgr.read_entry(
             MINT_TITLE, SESSION_PATH,
             "session.old",
             "Location of the chromedriver session.old data")
-        # self.session_path = os.path.join(".", self.session_path)
+        self.session_path = os.path.join(pathlib.Path(__file__).parent.absolute(), session_path)
         self.mint_ignore_accounts = cfg_mgr.read_entry(
             MINT_TITLE, MINT_IGNORE_ACCOUNTS,
             "duplicate",
@@ -397,7 +400,7 @@ class MintConfigFile:
             "red",
             "This indicates the color to present a credit account if it is "
                                                     "past due")
-        self.email_connection = EmailConnection(cfg_mgr, filename=file_name, create=create)
+        self.email_connection = EmailConnectionConfig(cfg_mgr, filename=file_name, create=create)
         self.users = []
         self.worst_day_error = 0
         for section in cfg_mgr.config.sections():
@@ -506,7 +509,7 @@ class MintConfigFile:
 
 def main():
     write = True
-    logging.config.fileConfig('logging.conf')
+    logging.config.fileConfig('logging.ini')
     if write:
         out_file_name = "home_out.ini"
     else:

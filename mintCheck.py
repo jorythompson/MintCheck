@@ -1,4 +1,4 @@
-from thompcoutils.log_utils import get_logger, get_log_file_name
+from thompcoutils.log_utils import get_logger, get_log_file_name, load_log_config
 import thompcoutils.os_utils as os_utils
 import traceback
 import mintObjects
@@ -8,15 +8,14 @@ import pickle
 import datetime
 from dateutil.relativedelta import relativedelta
 from mintConfigFile import MintConfigFile
-from emailSender import EmailSender
+from thompcoutils.email_utils import EmailSender
 from random import randint
 import time
-import logging
-import logging.config
 import os
 import sys
 import psutil
-sys.path.insert(0, '../mintapi')
+import shutil
+sys.path.insert(0, '../github/mintapi')
 import mintapi
 
 
@@ -50,8 +49,13 @@ class MintCheck:
             format(self.config.wait_for_sync,
                    '' if self.config.wait_for_sync == 1 else 's')
         if os.path.exists(self.config.session_path):
-            if not os.path.isdir(self.config.session_path):
-                raise Exception("{} must either not exist or be a folder".format(self.config.session_path))
+            if os.path.isdir(self.config.session_path):
+                try:
+                    shutil.rmtree(self.config.session_path)
+                except Exception as e:
+                    pass
+            else:
+                os.remove(self.config.session_path)
         else:
             os.makedirs(self.config.session_path)
 
@@ -239,18 +243,10 @@ def kill_procs(session_path):
     pass
 
 
-def load_log_config():
-    logger = get_logger()
-    local_path = os.path.dirname(os.path.abspath(__file__))
-    log_configuration_file = os.path.join(local_path, 'logging.conf')
-    logging.config.fileConfig(log_configuration_file)
-    # os.remove(logger.manager.root.handlers[0].baseFilename)
-    # logging.config.fileConfig(log_configuration_file)
-    logger.info("Beginning logging with configuration from:" + log_configuration_file)
-
-
 def main():
-    load_log_config()
+    local_path = os.path.dirname(os.path.abspath(__file__))
+    log_configuration_file = os.path.join(local_path, 'logging.ini')
+    load_log_config(log_configuration_file)
     logger = get_logger()
     success = False
     mint_check = MintCheck()

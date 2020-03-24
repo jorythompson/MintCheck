@@ -1,6 +1,6 @@
 from mintCheck import MintCheck
-from emailSender import EmailSender
 from thompcoutils.log_utils import get_logger, get_log_file_name
+from thompcoutils.email_utils import EmailSender
 import thompcoutils.config_utils as config_utils
 import pickle
 import dominate.tags as tags
@@ -687,6 +687,7 @@ class PrettyPrint:
                             if email.lower() == admin_email.lower() and self.config.debug_attach_log:
                                 log_file = get_log_file_name()
                                 break
-                        email_sender.send(to_email=email, subject=user.subject, message=message, attach_file=log_file)
+                        email_sender.send(to_email=email, subject=user.subject, message=message,
+                                          attach_files=log_file)
                 else:
                     logger.debug("Not sending emails")
