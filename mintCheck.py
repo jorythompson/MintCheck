@@ -68,15 +68,15 @@ class MintCheck:
     def _get_data(self):
         logger = get_logger()
         start_date = datetime.datetime.today() - datetime.timedelta(days=31)
-        logger.info("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
+        logger.debug("getting transactions from " + start_date.strftime('%m/%d/%Y') + "...")
         if self.config.debug_mint_download:
             logger.debug("Connecting to Mint...")
             self.status = "Connecting"
             self.mint = self.connect()
             self.attention = self.mint.get_attention()
-            logger.info("getting accounts...")
+            logger.debug("getting accounts...")
             self.accounts = self.mint.get_accounts(get_detail=False)
-            logger.info("Getting transactions...")
+            logger.debug("Getting transactions...")
             self.mint_transactions = self.mint.get_transactions_json(include_investment=True,
                                                                      skip_duplicates=self.config.mint_remove_duplicates,
                                                                      start_date=start_date.strftime('%m/%d/%y'))
@@ -102,7 +102,7 @@ class MintCheck:
             self.accounts.dump()
             self.mint_transactions.dump()
 
-        logger.info("assembling \"paid from\" accounts")
+        logger.debug("assembling \"paid from\" accounts")
         for paid_from in self.config.paid_from:
             for account in self.accounts:
                 if paid_from["debit account"] == account["accountName"]:
@@ -223,24 +223,22 @@ def kill_chrome(all_chromes=False):
 
 
 def kill_procs(session_path):
+    logger = get_logger()
     for proc in psutil.process_iter():
         try:
             # this returns the list of opened files by the current process
             flist = proc.open_files()
             if flist:
-                print("PID:{}, Name:{}".format(proc.pid, proc._name))
+                logger.debug("PID:{}, Name:{}".format(proc.pid, proc._name))
                 if "Google" in proc._name:
                     for nt in flist:
-                        print("\t", nt.path)
                         if session_path in nt:
                             os_utils.kill_process(proc)
-                            print("\t", nt.path)
 
         # This catches a race condition where a process ends
         # before we can examine its files
         except Exception as err:
-            print("****", err)
-    pass
+            pass
 
 
 def main():
@@ -263,19 +261,19 @@ def main():
             try:
                 if mint_check.args.live:
                     sleep_time = randint(0, 60 * mint_check.config.general_sleep)
-                    logger.info("Waiting a random time so we don't connect to Mint at the same time every day."
-                                + "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') + " for "
-                                + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minute(s) and %S second(s)')
-                                + ", waking at "
-                                + (datetime.datetime.now() +
-                                   datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
+                    logger.debug("Waiting a random time so we don't connect to Mint at the same time every day."
+                                 + "  Starting to sleep at " + datetime.datetime.now().strftime('%H:%M:%S') + " for "
+                                 + datetime.datetime.fromtimestamp(sleep_time).strftime('%M minute(s) and %S second(s)')
+                                 + ", waking at "
+                                 + (datetime.datetime.now() +
+                                    datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
                     time.sleep(sleep_time)
                 mint_check.collect_and_send()
                 success = True
             except Exception as e:
                 if "Session has expired" not in str(e):
                     logger.critical("Exception caught!")
-                    print(traceback.format_exc())
+                    logger.debug(traceback.format_exc())
                     if mint_check is None:
                         logger.critical("mint_check is None")
                     elif mint_check.mint is None:
@@ -308,7 +306,7 @@ def main():
                            "Too many attempts {}".format(mint_check.config.max_retries),
                            "The connection is timing out")
 
-    logger.info("Done!")
+    logger.debug("Done!")
 
 
 def send_admin_message(email_sender, admin_emails, subject, message):

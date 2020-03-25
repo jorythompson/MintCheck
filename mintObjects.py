@@ -1,3 +1,4 @@
+from thompcoutils.log_utils import get_logger
 from datetime import datetime
 import inspect
 import logging
@@ -5,7 +6,7 @@ import re
 
 
 def clean_dictionary(name, transactions):
-    logger = logging.getLogger(inspect.stack()[0][3])
+    logger = get_logger()
     logger.debug(name + " before:")
     logger.debug(str(transactions))
     for transaction in transactions:
@@ -95,7 +96,7 @@ class MintTransactions:
         self.transactions = clean_dictionary("MintTransactions", obj)
 
     def dump(self):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger = get_logger()
         for transaction in self.transactions:
             logger.debug("Dumping Transaction")
             for key in transaction:
@@ -147,7 +148,7 @@ class MintAccounts:
         return None
 
     def dump(self):
-        logger = logging.getLogger(self.__class__.__name__ + "." + inspect.stack()[0][3])
+        logger = get_logger()
         for account in self.accounts:
             logger.debug("Dumping " + account["name"])
             for key in account:

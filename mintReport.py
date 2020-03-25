@@ -44,7 +44,7 @@ class PrettyPrint:
         debit_accounts_html = tags.html()
         if len(debit_accounts) > 0 or len(missing_debit_accounts) > 0:
             sorted_debit_accounts = sorted(debit_accounts, key=itemgetter('mint next payment date'))
-            logger.info("assembling debit account list")
+            logger.debug("assembling debit account list")
             with debit_accounts_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Required Balances in Debit Accounts Due Soon", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
@@ -227,7 +227,7 @@ class PrettyPrint:
         logger = get_logger()
         balance_warnings_html = tags.html()
         if len(balance_warnings) > 0:
-            logger.info("assembling balance warnings")
+            logger.debug("assembling balance warnings")
             with balance_warnings_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Accounts With Balance Alerts", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
@@ -284,7 +284,7 @@ class PrettyPrint:
         logger = get_logger()
         fees_html = tags.html()
         if len(bad_transactions) > 0:
-            logger.info("assembling bad transactions")
+            logger.debug("assembling bad transactions")
             with fees_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("Tagged Transactions", align="center")
                 with tags.table(rules="cols", frame="box", align="center"):
@@ -331,7 +331,7 @@ class PrettyPrint:
     def get_accounts(self, user):
         logger = get_logger()
         accounts = []
-        logger.info("assembling account lists")
+        logger.debug("assembling account lists")
         for account in self.accounts:
             for account_name in user.active_accounts:
                 if (account_name == "all" or account_name == account["name"]) \
@@ -431,7 +431,7 @@ class PrettyPrint:
         debug_html = None
         if not self.config.debug_send_email or not self.config.debug_mint_download :
             debug_html = tags.html()
-            logger.info("assembling debug section")
+            logger.debug("assembling debug section")
             with debug_html.add(tags.body()).add(tags.div(id='content')):
                 tags.h1("*** WARNING - DEBUG VALUES SET ***", align="center", style="color:red")
                 if not self.config.debug_send_email:
@@ -466,7 +466,7 @@ class PrettyPrint:
 
     def create_attention(self):
         logger = get_logger()
-        logger.info("assembling attention block")
+        logger.debug("assembling attention block")
         attention_html = tags.html()
         if self.attention is None or self.attention == "":
             return None
@@ -483,7 +483,7 @@ class PrettyPrint:
         credit_history = history.write_value("credit_score", self.credit_score)
         net_worth_history = history.write_value("net_worth", self.net_worth)
         logger = get_logger()
-        logger.info("assembling net worth and credit report")
+        logger.debug("assembling net worth and credit report")
         net_worth_html = tags.html()
         with net_worth_html.add(tags.body()).add(tags.div(id='content')):
             with tags.table(rules="cols", frame="box", align="center"):
@@ -580,7 +580,7 @@ class PrettyPrint:
             attention_html = self.create_attention()
             if user.name not in self.config.general_users and "all" not in self.config.general_users:
                 continue
-            logger.info("handling user:" + user.name)
+            logger.debug("handling user:" + user.name)
             start_date, report_frequency = MintCheck.get_start_date(self.now, self.config.general_week_start,
                                                                     self.config.general_month_start, user.frequency)
             balance_warnings = []

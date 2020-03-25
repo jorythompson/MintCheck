@@ -172,7 +172,7 @@ class MintConfigFile:
         create = out_file is not None
         cfg_mgr = ConfigManager(file_name, create=create)
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        logger.info("Starting session.old")
+        logger.debug("Starting session.old")
         self.mint_username = cfg_mgr.read_entry(
             MINT_TITLE, MINT_USER_USERNAME,
             "Mint Username",

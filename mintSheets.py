@@ -187,7 +187,7 @@ class MintSheet:
         return data
 
 
-def main():
+def _main():
     config = MintConfigFile("home.ini")
     start_date = datetime.datetime.strptime('08/01/2016', "%d/%m/%Y")
     mint_spread = MintSheet(config, start_date)
@@ -204,4 +204,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    _main()
