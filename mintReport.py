@@ -682,7 +682,7 @@ class PrettyPrint:
                     email_sender = EmailSender(self.config.email_connection)
                     for email in user.email:
                         log_file = None
-                        logger.debug("Sending email to {}".format(email))
+                        logger.info("Sending email to {}".format(email))
                         for admin_email in self.config.general_admin_email:
                             if email.lower() == admin_email.lower() and self.config.debug_attach_log:
                                 log_file = get_log_file_name()

@@ -268,7 +268,10 @@ def main():
                                  + (datetime.datetime.now() +
                                     datetime.timedelta(seconds=sleep_time)).strftime('%H:%M:%S'))
                     time.sleep(sleep_time)
+                logger.debug("Starting Run")
+                start = datetime.datetime.now()
                 mint_check.collect_and_send()
+                logger.debug("Ending Run.  Took {}".format(datetime.datetime.now() - start))
                 success = True
             except Exception as e:
                 if "Session has expired" not in str(e):
