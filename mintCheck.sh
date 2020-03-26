@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 if [[ ! -f "mintCheck,py" ]]
 then
   export MINT_FOLDER=./
