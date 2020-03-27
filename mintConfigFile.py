@@ -400,7 +400,7 @@ class MintConfigFile:
             "red",
             "This indicates the color to present a credit account if it is "
                                                     "past due")
-        self.email_connection = EmailConnectionConfig(cfg_mgr, filename=file_name, create=create)
+        self.email_connection = EmailConnectionConfig(cfg_mgr)
         self.users = []
         self.worst_day_error = 0
         for section in cfg_mgr.config.sections():

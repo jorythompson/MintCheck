@@ -16,7 +16,7 @@ import sys
 import psutil
 import shutil
 sys.path.insert(0, '../github/mintapi')
-import mintapi
+import mintapi  # noqa
 
 
 # from datetime import datetime, date, time
@@ -50,9 +50,10 @@ class MintCheck:
                    '' if self.config.wait_for_sync == 1 else 's')
         if os.path.exists(self.config.session_path):
             if os.path.isdir(self.config.session_path):
+                # noinspection PyBroadException
                 try:
                     shutil.rmtree(self.config.session_path)
-                except Exception as e:
+                except Exception:
                     pass
             else:
                 os.remove(self.config.session_path)
@@ -224,20 +225,23 @@ def kill_chrome(all_chromes=False):
 
 def kill_procs(session_path):
     logger = get_logger()
-    for proc in psutil.process_iter():
+    for processs in psutil.process_iter():
+        # noinspection PyBroadException
         try:
             # this returns the list of opened files by the current process
-            flist = proc.open_files()
-            if flist:
-                logger.debug("PID:{}, Name:{}".format(proc.pid, proc._name))
-                if "Google" in proc._name:
-                    for nt in flist:
+            file_list = processs.open_files()
+            if file_list:
+                # noinspection PyProtectedMember
+                logger.debug("PID:{}, Name:{}".format(processs.pid, processs._name))
+                # noinspection PyProtectedMember
+                if "Google" in processs._name:
+                    for nt in file_list:
                         if session_path in nt:
-                            os_utils.kill_process(proc)
+                            os_utils.kill_process(processs)
 
-        # This catches a race condition where a process ends
-        # before we can examine its files
-        except Exception as err:
+            # This catches a race condition where a process ends
+            # before we can examine its files
+        except Exception:
             pass
 
 

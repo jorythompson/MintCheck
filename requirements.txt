@@ -6,3 +6,4 @@ selenium
 selenium-requests
 xmltodict
 dominate
+psutil
