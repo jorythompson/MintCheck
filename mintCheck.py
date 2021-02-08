@@ -256,7 +256,9 @@ def main():
     for attempt in range(mint_check.config.max_retries):
         # Occasionally Mint fails with strange exceptions.  This loop will try several times before giving up.
         # Note that each failure will email the exception to the appropriate recipients
-        if not success:
+        if success:
+            break
+        else:
             if mint_check is None:
                 mint_check = MintCheck()
             else:
