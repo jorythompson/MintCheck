@@ -20,6 +20,15 @@ HEADLESS = "headless"
 SESSION_PATH = "session_path"
 MINT_REMOVE_DUPLICATES = "remove_duplicates"
 MINT_IGNORE_ACCOUNTS = "ignore_accounts_containing"
+MFA_TITLE = "mfa"
+
+# multi factor authentication block
+MFA_METHOD = 'mfa_method'
+IMAP_ACCOUNT = 'imap_account'
+IMAP_PASSWORD = 'imap_password'
+IMAP_SERVER = 'imap_server'
+IMAP_FOLDER = 'imap_folder'
+
 
 # general block
 GENERAL_TITLE = "general"
@@ -81,7 +90,7 @@ BALANCE_WARNINGS_TITLE = "balance warnings"
 PAID_FROM_TITLE = "paid from"
 
 SKIP_TITLES = [MINT_TITLE, GENERAL_TITLE, EMAIL_TITLE, LOCALE_TITLE, DEBUG_TITLE, COLORS_TITLE,
-               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE, BALANCE_WARNINGS_TITLE, PAID_FROM_TITLE]
+               ACCOUNT_TYPES_TITLE, PAST_DUE_TITLE, BALANCE_WARNINGS_TITLE, PAID_FROM_TITLE, MFA_TITLE]
 
 
 class ConfigManagerException(Exception):
@@ -135,7 +144,7 @@ class MintUser:
         self.rename_institutions = cfg_mgr.read_entry(
             name,
             USER_RENAME_INSTITUTION,
-            {"old name":"new name", "mint name":"my name"},
+            {"old name": "new name", "mint name": "my name"},
             "Rename accounts that Mint may have trouble with")
         self.display_credit_report = cfg_mgr.read_entry(
             name, CREDIT_REPORT, False,
@@ -173,6 +182,26 @@ class MintConfigFile:
         cfg_mgr = ConfigManager(file_name, create=create)
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
         logger.debug("Starting session.old")
+        self.mfa_method = cfg_mgr.read_entry(
+            MFA_TITLE, MFA_METHOD,
+            "MFA method",
+            "Can be 'email' or 'soft-token'")
+        self.imap_server = cfg_mgr.read_entry(
+            MFA_TITLE, IMAP_SERVER,
+            "imap.gmail.com",
+            "IMAP server host name to connect to when retrieving MFA via email")
+        self.imap_account = cfg_mgr.read_entry(
+            MFA_TITLE, IMAP_ACCOUNT,
+            "IMAP user account",
+            "account name used to log in to your IMAP server")
+        self.imap_password = cfg_mgr.read_entry(
+            MFA_TITLE, IMAP_PASSWORD,
+            "IMAP user password",
+            "account password used to log in to your IMAP server")
+        self.imap_folder = cfg_mgr.read_entry(
+            MFA_TITLE, IMAP_FOLDER,
+            "INBOX",
+            "IMAP folder that receives MFA email")
         self.mint_username = cfg_mgr.read_entry(
             MINT_TITLE, MINT_USER_USERNAME,
             "Mint Username",

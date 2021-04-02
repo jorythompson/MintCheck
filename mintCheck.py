@@ -62,7 +62,12 @@ class MintCheck:
 
         logger.debug(self.status)
         return mintapi.Mint.create(email=self.config.mint_username, password=self.config.mint_password,
-                                   headless=self.config.headless, mfa_method="sms",
+                                   headless=self.config.headless,
+                                   mfa_method=self.config.mfa_method,
+                                   imap_account=self.config.imap_account,
+                                   imap_password=self.config.imap_password,
+                                   imap_server=self.config.imap_server,
+                                   imap_folder=self.config.imap_folder,
                                    use_chromedriver_on_path=True,
                                    session_path=self.config.session_path,
                                    wait_for_sync=True, wait_for_sync_timeout=self.config.wait_for_sync*60)
