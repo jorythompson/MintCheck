@@ -1,7 +1,7 @@
 #!/bin/bash
 # Open a shell like this for testing:
 # bash --noprofile --norc
-if [ -f "mintCheck,py" ];
+if [ -f "mintCheck.py" ];
 then
   export MINT_FOLDER=./
 else

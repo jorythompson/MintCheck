@@ -63,6 +63,7 @@ class MintCheck:
         logger.debug(self.status)
         return mintapi.Mint.create(email=self.config.mint_username, password=self.config.mint_password,
                                    headless=self.config.headless, mfa_method="sms",
+				   use_chromedriver_on_path=True,
                                    session_path=self.config.session_path,
                                    wait_for_sync=True, wait_for_sync_timeout=self.config.wait_for_sync*60)
 
