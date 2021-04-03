@@ -5,7 +5,7 @@ if [ -f "mintCheck.py" ];
 then
   export MINT_FOLDER=./
 else
-  export MINT_FOLDER=/mnt/usbdrive/python/MintCheck
+  export MINT_FOLDER=/mnt/usbdrive/python/mintCheck
 fi
 export API_FOLDER=$MINT_FOLDER/../github/mintapi
 cd $MINT_FOLDER
